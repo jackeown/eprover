@@ -1,3 +1,8 @@
+# THIS IS MY OWN FORK OF E.
+## This is meant to mirror the original repo with an added heuristic for integration with PyTorch models via interprocess communication.
+
+
+
 **NOTE**: The CASC ReadMe file is in `DOC/Readme`.
 
 Short Installation Instructions for the impatient
