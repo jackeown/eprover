@@ -26,12 +26,16 @@ Contents
 /*                    Data type declarations                           */
 /*---------------------------------------------------------------------*/
 
-typedef struct {
-  char* clausePipePath;
-  int clausePipe;
 
-  char* scorePipePath;
+typedef struct {
+  int clausePipe;
   int scorePipe;
+  long* nodeScratch;
+  long* edgeIndexScratch;
+  long* edgeAttrScratch;
+  double* scoreScratch;
+  Sig_p signature;
+  StrTree_p symbolMap;
 } ExternalWeightState_cell, *ExternalWeightState_p;
 
 
@@ -41,16 +45,17 @@ typedef struct {
 } Matrix;
 
 typedef struct {
-  Matrix nodeVecs;
+  Matrix node_symbols;
   Matrix edge_index;
   Matrix edge_attr;
 } PyG;
+
 
 /*---------------------------------------------------------------------*/
 /*                Exported Functions and Variables                     */
 /*---------------------------------------------------------------------*/
 
-WFCB_p ExternalWeightInit(ClausePrioFun prio_fun, char* clausePipePath, char* scorePipePath);
+WFCB_p ExternalWeightInit(ClausePrioFun prio_fun, ProofState_p state, char* clausePipePath, char* scorePipePath, char* symbolMapPath);
 
 WFCB_p ExternalWeightParse(Scanner_p in, OCB_p ocb, ProofState_p state);
 

@@ -602,12 +602,18 @@ void eval_clause_set(ProofState_p state, ProofControl_p control)
    assert(state);
    assert(control);
 
+
    for(handle = state->eval_store->anchor->succ;
        handle != state->eval_store->anchor;
        handle = handle->succ)
    {
       HCBClauseEvaluate(control->hcb, handle);
    }
+
+   // TODO: Handle externalWeight evaluations.
+   // Have to do it after the for loop because 
+   // HCBClauseEvaluate makes space for the evaluations.
+   // wfcb can operate with the same signature since Clause_p can also be an array of clauses!
 }
 
 
