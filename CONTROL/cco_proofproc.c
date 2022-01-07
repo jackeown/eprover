@@ -719,10 +719,192 @@ static Clause_p insert_new_clauses(ProofState_p state, ProofControl_p control)
       ClauseDelProp(handle, CPIsOriented);
       DocClauseQuoteDefault(6, handle, "eval");
 
-      ClauseSetInsert(state->unprocessed, handle);
+      ClauseSetInsert(state->IAS_inferences, handle);
+      // ClauseSetInsert(state->unprocessed, handle);
    }
    return NULL;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+float* range(int a, int b){
+   float* mem = SizeMalloc((b-a)*sizeof(float));
+   for(int i=0; i<(b-a); i++){
+      mem[i] = a+i;
+   }
+   return mem;
+}
+
+float mean(float* nums, size_t count){
+   float sum = 0;
+   for(int i=0; i<count; i++){
+      sum += nums[i];
+   }
+   return sum / count;
+}
+
+float dot(float* vec1, float* vec2, size_t n){
+   float result = 0;
+   for(int i=0; i<n; i++){
+      result += vec1[i] * vec2[i];
+   }
+   return result;
+}
+
+IAS_LinRegResult IAS_LinearRegression(float* evals, size_t start, size_t end){
+   IAS_LinRegResult result;
+   result.slope = -1.0;
+   result.intercept = -1.0;
+   result.loss = -1.0;
+
+   size_t n = end - start;
+
+   float* xs = SizeMalloc(n * sizeof(float));
+   float* ys = SizeMalloc(n * sizeof(float));
+
+   float* mem = range(start, end);
+   float mu_x = mean(mem, n);
+   float mu_y = mean(evals+start, n);
+
+   // create centered data by subtracting means.
+   float sum_of_squares = 0;
+   for(int i=0; i<n; i++){
+      xs[i] = mem[i] - mu_x;
+      ys[i] = (evals+start)[i] - mu_y;
+      sum_of_squares += (xs[i] * xs[i]);
+   }
+   free(mem);
+
+   // (X^t @ X)^-1 X^t @ y
+   // https://stats.stackexchange.com/questions/46151/how-to-derive-the-least-square-estimator-for-multiple-linear-regression
+   result.slope = (1 / (sum_of_squares)) * dot(xs, ys, n);
+   result.intercept = (mu_y) - result.slope * mu_x;
+   
+   result.loss = 0;
+   for(int i=0; i<n; i++){
+      float x = start + i;
+      float y = (evals+start)[i];
+      float y_pred = result.slope * x + result.intercept;
+      result.loss += ((y-y_pred)*(y-y_pred));
+   }
+
+   free(xs);
+   free(ys);
+
+   return result;
+}
+
+typedef struct clause_with_index {
+   Clause_p clause;
+   size_t idx;
+} IdxClause;
+
+
+size_t WHICH_EVAL = 0;
+int comparator(const void* c1_, const void* c2_){
+   Clause_p c1 = ((IdxClause*)c1_)->clause;
+   Clause_p c2 = ((IdxClause*)c2_)->clause;
+   return EvalCompare(c1->evaluations, c2->evaluations, WHICH_EVAL);
+}
+
+IdxClause* sort(ClauseSet_p clauses){
+   IdxClause* sorted = SizeMalloc(clauses->members * sizeof(IdxClause));
+
+   Clause_p handle = clauses->anchor;
+   for(size_t i=0; i<clauses->members; i++){
+      handle = handle->succ;
+      sorted[i].clause = handle;
+      sorted[i].idx = i;
+   }
+
+   qsort(sorted, clauses->members, sizeof(IdxClause), comparator);
+   return sorted;
+}
+
+int max(int a, int b){
+   return (a > b) ? a : b;
+}
+
+
+
+ClauseSet_p IAS_LinearRegressionCut(ClauseSet_p IAS_inferences){
+
+   long n = IAS_inferences->members;
+
+   ClauseSet_p filtered = ClauseSetAlloc();
+
+   // 1.) Sort inference evaluations into "evals" list.
+   IdxClause* sorted = sort(IAS_inferences);
+   float* evals = SizeMalloc(n * sizeof(float));
+   for(size_t i=0; i<n; i++){
+      evals[i] = sorted[i].clause->evaluations->evals[WHICH_EVAL].heuristic;
+   }
+
+   // 2.) For each possible split, run IAS_LinearRegression on both halves and keep the "best".
+   size_t best_split = 0;
+   size_t biggest_slope_diff = 0;
+   size_t increment = max(n / 1000, 1); // not just 1 in case there are many many possible splits.
+   for(size_t split_idx=increment; split_idx < n - increment; split_idx += increment){
+      IAS_LinRegResult left_result = IAS_LinearRegression(evals, 0, split_idx);
+      IAS_LinRegResult right_result = IAS_LinearRegression(evals, split_idx, n);
+
+      float slope_diff = right_result.slope - left_result.slope;
+      if(slope_diff > biggest_slope_diff){
+         best_split = split_idx;
+         biggest_slope_diff = slope_diff;
+      }
+   }
+
+   // Don't ever throw away more than 2/3rds of the clauses.
+   best_split = max(n / 3, best_split);
+
+   // 3.) Filter out and return the clauses corresponding to the left half after the split.
+   for(size_t i=0; i<best_split; i++){
+      ClauseSetMoveClause(filtered, sorted[i].clause);
+   }
+
+   free(evals);
+   free(sorted);
+
+   return filtered;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 /*-----------------------------------------------------------------------
@@ -1675,6 +1857,40 @@ Clause_p Saturate(ProofState_p state, ProofControl_p control, long
             break;
          }
       }
+
+
+
+      ///////////////////////////////////////////////////////////////////////
+      //                                                                   //
+      // Added by Jack McKeown to support Iterated Axiom Selection.        //
+      // Filters IAS_inferences clause set via so-called                   //
+      // "linear regression cut" on clause eval func evals.                //
+      // and appends them to the unprocessed set if it is empty.
+
+      if(ClauseSetEmpty(state->unprocessed)){
+
+         if(ClauseSetEmpty(state->IAS_inferences)){
+            break;
+         }
+
+         // Filter IAS_inferences
+         fprintf(stdout, "Begin Filtering IAS_inferences...%ld\n", state->IAS_inferences->members);
+         // ClauseSet_p filtered = IAS_LinearRegressionCut(state->IAS_inferences);
+         ClauseSet_p filtered = state->IAS_inferences;
+         fprintf(stdout, "Done Filtering IAS_inferences...%ld\n", filtered->members);
+
+         // Dump IAS_inferences ***and processed*** into unprocessed.
+         ClauseSetInsertSet(state->unprocessed, filtered);
+
+         // Clear out IAS_inferences.
+         ClauseSetCellFree(state->IAS_inferences);
+         state->IAS_inferences = ClauseSetAlloc();
+         
+      }
+      //                                                                   //
+      //                                                                   //
+      ///////////////////////////////////////////////////////////////////////
+
    }
    return unsatisfiable;
 }

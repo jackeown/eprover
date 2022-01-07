@@ -77,6 +77,16 @@ Clause_p Saturate(ProofState_p state, ProofControl_p control, long
 Clause_p SATCheck(ProofState_p state, ProofControl_p control);
 
 
+typedef struct {
+  float slope;
+  float intercept;
+  float loss;
+} IAS_LinRegResult;
+
+ClauseSet_p IAS_LinearRegressionCut(ClauseSet_p IAS_inferences);
+
+
+
 
 #endif
 

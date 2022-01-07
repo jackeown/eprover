@@ -161,6 +161,7 @@ ProofState_p ProofStateAlloc(FunctionProperties free_symb_prop)
    handle->processed_neg_units  = ClauseSetAlloc();
    handle->processed_non_units  = ClauseSetAlloc();
    handle->unprocessed          = ClauseSetAlloc();
+   handle->IAS_inferences       = ClauseSetAlloc();
    handle->tmp_store            = ClauseSetAlloc();
    handle->eval_store           = ClauseSetAlloc();
    handle->archive              = ClauseSetAlloc();

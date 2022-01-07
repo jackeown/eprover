@@ -55,6 +55,7 @@ typedef struct proofstatecell
    ClauseSet_p   processed_neg_units;
    ClauseSet_p   processed_non_units;
    ClauseSet_p   unprocessed;
+   ClauseSet_p   IAS_inferences;
    ClauseSet_p   tmp_store;
    ClauseSet_p   eval_store;
    ClauseSet_p   archive;
