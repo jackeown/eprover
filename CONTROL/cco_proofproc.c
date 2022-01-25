@@ -740,6 +740,36 @@ static Clause_p insert_new_clauses(ProofState_p state, ProofControl_p control)
 
 
 
+// TODO: How do I get heuristic names?
+
+
+void outputHeuristicNames(ClauseSet_p clauses, FILE* csv){
+   Clause_p c = clauses->anchor->succ;
+   // fprintf(csv, "header\n");
+}
+
+void outputHeuristicVals(ClauseSet_p clauses, FILE* csv){
+   int i = 0;
+   for(Clause_p c=clauses->anchor->succ; c != clauses->anchor; c=c->succ){
+      Eval_p evals = c->evaluations;
+      size_t n = evals->eval_no;
+      for(size_t i=0; i<n; i++){
+         fprintf(csv, "%f, ", evals->evals[i].heuristic);
+      }
+      fprintf(csv, "\n");
+      i += 1;
+   }
+}
+
+void outputHeuristicInfo(ClauseSet_p clauses, int i){
+
+   char filename[200];
+   snprintf(filename, 200, "heuristic_info_%d.csv", i);
+   FILE* csv = fopen(filename, "w");
+   outputHeuristicNames(clauses, csv);
+   outputHeuristicVals(clauses, csv);
+   fclose(csv);
+}
 
 
 
@@ -786,7 +816,7 @@ IAS_LinRegResult IAS_LinearRegression(float* evals, size_t start, size_t end){
    float sum_of_squares = 0;
    for(int i=0; i<n; i++){
       xs[i] = mem[i] - mu_x;
-      ys[i] = (evals+start)[i] - mu_y;
+      ys[i] = evals[start + i] - mu_y;
       sum_of_squares += (xs[i] * xs[i]);
    }
    free(mem);
@@ -799,7 +829,7 @@ IAS_LinRegResult IAS_LinearRegression(float* evals, size_t start, size_t end){
    result.loss = 0;
    for(int i=0; i<n; i++){
       float x = start + i;
-      float y = (evals+start)[i];
+      float y = evals[start+i];
       float y_pred = result.slope * x + result.intercept;
       result.loss += ((y-y_pred)*(y-y_pred));
    }
@@ -817,10 +847,24 @@ typedef struct clause_with_index {
 
 
 size_t WHICH_EVAL = 0;
+
+float IAS_filter_val(Clause_p c){
+   return c->evaluations->evals[WHICH_EVAL].heuristic;
+}
+
 int comparator(const void* c1_, const void* c2_){
    Clause_p c1 = ((IdxClause*)c1_)->clause;
    Clause_p c2 = ((IdxClause*)c2_)->clause;
-   return EvalCompare(c1->evaluations, c2->evaluations, WHICH_EVAL);
+
+   float v1 = IAS_filter_val(c1);
+   float v2 = IAS_filter_val(c2);
+
+   if (v1 < v2)
+      return -1;
+   else if (v1 > v2)
+      return 1;
+   else
+      return 0;
 }
 
 IdxClause* sort(ClauseSet_p clauses){
@@ -853,14 +897,16 @@ ClauseSet_p IAS_LinearRegressionCut(ClauseSet_p IAS_inferences){
    IdxClause* sorted = sort(IAS_inferences);
    float* evals = SizeMalloc(n * sizeof(float));
    for(size_t i=0; i<n; i++){
-      evals[i] = sorted[i].clause->evaluations->evals[WHICH_EVAL].heuristic;
+      evals[i] = IAS_filter_val(sorted[i].clause);
    }
 
    // 2.) For each possible split, run IAS_LinearRegression on both halves and keep the "best".
    size_t best_split = 0;
    size_t biggest_slope_diff = 0;
    size_t increment = max(n / 1000, 1); // not just 1 in case there are many many possible splits.
-   for(size_t split_idx=increment; split_idx < n - increment; split_idx += increment){
+   size_t min_keep = n / 4;
+   size_t max_keep = 3 * n / 4;
+   for(size_t split_idx=min_keep; split_idx < max_keep; split_idx += increment){
       IAS_LinRegResult left_result = IAS_LinearRegression(evals, 0, split_idx);
       IAS_LinRegResult right_result = IAS_LinearRegression(evals, split_idx, n);
 
@@ -884,8 +930,6 @@ ClauseSet_p IAS_LinearRegressionCut(ClauseSet_p IAS_inferences){
 
    return filtered;
 }
-
-
 
 
 
@@ -1873,11 +1917,28 @@ Clause_p Saturate(ProofState_p state, ProofControl_p control, long
             break;
          }
 
+
+         // Write out heuristic info to files for plotting.
+         // A CSV with 1 row per clause.
+         // Each column is a different CEF.
+         static int i=0;
+         outputHeuristicInfo(state->IAS_inferences, i);
+
+
          // Filter IAS_inferences
          fprintf(stdout, "Begin Filtering IAS_inferences...%ld\n", state->IAS_inferences->members);
-         // ClauseSet_p filtered = IAS_LinearRegressionCut(state->IAS_inferences);
-         ClauseSet_p filtered = state->IAS_inferences;
+         ClauseSet_p filtered = IAS_LinearRegressionCut(state->IAS_inferences);
+         // ClauseSet_p filtered = state->IAS_inferences;
          fprintf(stdout, "Done Filtering IAS_inferences...%ld\n", filtered->members);
+
+
+         char filename[200];
+         snprintf(filename, 200, "heuristic_info_%d.split", i);
+         FILE* info = fopen(filename, "w");
+         fprintf(info, "%d", filtered->members);
+         fclose(info);
+         i += 1;
+
 
          // Dump IAS_inferences ***and processed*** into unprocessed.
          ClauseSetInsertSet(state->unprocessed, filtered);
