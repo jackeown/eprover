@@ -932,6 +932,9 @@ ClauseSet_p IAS_LinearRegressionCut(ClauseSet_p IAS_inferences){
 }
 
 
+ClauseSet_p IAS_PercentileCut(ClauseSet_p IAS_inferences, float percentile) {
+
+}
 
 
 
