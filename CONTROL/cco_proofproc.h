@@ -35,6 +35,7 @@ Changes
 #include <cco_forward_contraction.h>
 #include <cco_interpreted.h>
 #include <ccl_satinterface.h>
+#include <fcntl.h>
 
 
 /*---------------------------------------------------------------------*/
@@ -75,6 +76,17 @@ Clause_p Saturate(ProofState_p state, ProofControl_p control, long
                   total_limit,  long generated_limit, long tb_insert_limit,
                   long answer_limit);
 Clause_p SATCheck(ProofState_p state, ProofControl_p control);
+
+
+
+extern int StatePipe;
+extern int ActionPipe;
+extern int RewardPipe;
+
+void initRLPipes();
+void sendRLState(RLProofStateCell);
+int recvRLAction();
+void sendRLReward(float);
 
 
 

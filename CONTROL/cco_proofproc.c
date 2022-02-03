@@ -1072,6 +1072,8 @@ void ProofControlInit(ProofState_p state, ProofControl_p control,
                       HeuristicParms_p params, FVIndexParms_p fvi_params,
                       PStack_p wfcb_defs, PStack_p hcb_defs)
 {
+   initRLPipes();
+
    PStackPointer sp;
    Scanner_p in;
 
@@ -1434,6 +1436,45 @@ void ProofStateInit(ProofState_p state, ProofControl_p control)
 }
 
 
+
+
+int StatePipe;
+int ActionPipe;
+int RewardPipe;
+
+
+void initRLPipes(){
+   StatePipe = open("/tmp/StatePipe", O_WRONLY);
+   ActionPipe = open("/tmp/ActionPipe", O_RDONLY);
+   RewardPipe = open("/tmp/RewardPipe", O_WRONLY);
+}
+
+
+void sendRLState(RLProofStateCell state){
+   // printf("state: (%ld, %ld)\n", state.numProcessed, state.numUnprocessed);
+   write(StatePipe, &(state.numProcessed), sizeof(size_t));
+   write(StatePipe, &(state.numUnprocessed), sizeof(size_t));
+}
+
+
+int recvRLAction(){
+   char buff[200];
+   read(ActionPipe, buff, sizeof(int));
+   int action = *((int*)buff);
+   
+   // printf("action: %d\n", action);
+   return action;
+}
+
+
+void sendRLReward(float reward){
+   // printf("reward: %f\n", reward);
+   write(RewardPipe, &reward, sizeof(float));
+}
+
+
+
+
 /*-----------------------------------------------------------------------
 //
 // Function: ProcessClause()
@@ -1455,10 +1496,29 @@ Clause_p ProcessClause(ProofState_p state, ProofControl_p control,
    FVPackedClause_p pclause;
    SysDate          clausedate;
 
+
+
+   //////// Jack McKeown's Reinforcement Learning Idea ///////////////////
+   // 1.) Send RL proof "state" to agent
+   RLProofStateCell rlstate;
+   rlstate.numProcessed = state->processed_count;
+   rlstate.numUnprocessed = ClauseSetCardinality(state->unprocessed);
+   sendRLState(rlstate);
+
+   // 2.) Receive "action" from agent 
+   //     (to become control->hcb->current_eval to tell which queue to select from)
+   control->hcb->current_eval = recvRLAction();
+
+   // 3.) Send "reward" to agent 
+   //     (so that the external guidance can learn)
+   //     (placed before every return statement in this function.)
+   ///////////////////////////////////////////////////////////////////////
+
    clause = control->hcb->hcb_select(control->hcb,
                                      state->unprocessed);
    if(!clause)
    {
+      sendRLReward(0.0);
       return NULL;
    }
    //EvalListPrintComment(GlobalOut, clause->evaluations); printf("\n");
@@ -1492,6 +1552,7 @@ Clause_p ProcessClause(ProofState_p state, ProofControl_p control,
       {
          ClauseSetDeleteEntry(arch_copy);
       }
+      sendRLReward(0.0);
       return NULL;
    }
 
@@ -1505,6 +1566,7 @@ Clause_p ProcessClause(ProofState_p state, ProofControl_p control,
       {
          clause = FVUnpackClause(pclause);
          ClauseEvaluateAnswerLits(clause);
+         sendRLReward(1.0);
          return clause;
       }
    }
@@ -1521,6 +1583,7 @@ Clause_p ProcessClause(ProofState_p state, ProofControl_p control,
       {
          PStackPushP(state->extract_roots, resclause);
       }
+      sendRLReward(1.0);
       return resclause;
    }
 
@@ -1600,8 +1663,10 @@ Clause_p ProcessClause(ProofState_p state, ProofControl_p control,
    if((empty = insert_new_clauses(state, control)))
    {
       PStackPushP(state->extract_roots, empty);
+      sendRLReward(1.0);
       return empty;
    }
+   sendRLReward(0.0);
    return NULL;
 }
 

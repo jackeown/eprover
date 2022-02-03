@@ -37,6 +37,15 @@ Changes
 /*---------------------------------------------------------------------*/
 
 
+
+typedef struct rlproofstate 
+{
+   size_t numProcessed;
+   size_t numUnprocessed;
+} RLProofStateCell, *RLProofState_p;
+
+
+
 typedef struct proofcontrolcell
 {
    OCB_p               ocb;
@@ -75,6 +84,11 @@ void           ProofControlResetSATSolver(ProofControl_p ctrl);
 
 void           DoLiteralSelection(ProofControl_p control, Clause_p
               clause);
+
+
+
+
+
 
 
 #endif
