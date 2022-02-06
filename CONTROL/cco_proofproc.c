@@ -887,6 +887,8 @@ int max(int a, int b){
 
 
 
+
+// Currently inverse linear regression cut on CDF data.
 ClauseSet_p IAS_LinearRegressionCut(ClauseSet_p IAS_inferences){
 
    long n = IAS_inferences->members;
@@ -900,25 +902,66 @@ ClauseSet_p IAS_LinearRegressionCut(ClauseSet_p IAS_inferences){
       evals[i] = IAS_filter_val(sorted[i].clause);
    }
 
-   // 2.) For each possible split, run IAS_LinearRegression on both halves and keep the "best".
-   size_t best_split = 0;
-   size_t biggest_slope_diff = 0;
-   size_t increment = max(n / 1000, 1); // not just 1 in case there are many many possible splits.
-   size_t min_keep = n / 4;
-   size_t max_keep = 3 * n / 4;
-   for(size_t split_idx=min_keep; split_idx < max_keep; split_idx += increment){
-      IAS_LinRegResult left_result = IAS_LinearRegression(evals, 0, split_idx);
-      IAS_LinRegResult right_result = IAS_LinearRegression(evals, split_idx, n);
+   // 1.5) Get CDF
+   size_t cdf_resolution = 200;
+   float min_eval = evals[0];
+   float max_eval = evals[n-1];
+   float dx = (max_eval - min_eval) / cdf_resolution;
 
-      float slope_diff = right_result.slope - left_result.slope;
+   float* cdf = SizeMalloc(cdf_resolution * sizeof(float));
+   size_t num_clauses_seen = 0;
+   float x = min_eval;
+   for(size_t i=0; i<cdf_resolution; i++){
+      x += dx;
+      while(evals[num_clauses_seen] < x){
+         num_clauses_seen++;
+      }
+      cdf[i] = num_clauses_seen / n;
+   }
+
+
+   size_t best_split = 0;
+   float biggest_slope_diff = -10000000;
+   for(size_t split_idx=cdf_resolution / 10; split_idx<(0.9 * cdf_resolution); split_idx++){
+   // for(size_t split_idx=10; split_idx<(cdf_resolution - 10); split_idx++){
+      IAS_LinRegResult left_result = IAS_LinearRegression(cdf, 0, split_idx);
+      IAS_LinRegResult right_result = IAS_LinearRegression(cdf, split_idx, cdf_resolution);
+
+      float slope_diff = left_result.slope - right_result.slope;
       if(slope_diff > biggest_slope_diff){
          best_split = split_idx;
          biggest_slope_diff = slope_diff;
       }
    }
 
-   // Don't ever throw away more than 2/3rds of the clauses.
-   best_split = max(n / 3, best_split);
+   // Logic only needed when using CDF.
+   float biggest_eval_to_accept = min_eval + (best_split * dx);
+   best_split = 0;
+   while(evals[best_split] < biggest_eval_to_accept){
+      best_split++;
+   }
+
+
+
+   // 2.) For each possible split, run IAS_LinearRegression on both halves and keep the "best".
+   // size_t best_split = 0;
+   // float biggest_slope_diff = 0;
+   // size_t increment = max(n / 1000, 1); // not just 1 in case there are many many possible splits.
+   // size_t min_keep = n / 100;
+   // size_t max_keep = 99 * n / 100;
+   // for(size_t split_idx=min_keep; split_idx < max_keep; split_idx += increment){
+   //    IAS_LinRegResult left_result = IAS_LinearRegression(evals, 0, split_idx);
+   //    IAS_LinRegResult right_result = IAS_LinearRegression(evals, split_idx, n);
+
+   //    float slope_diff = right_result.slope - left_result.slope;
+   //    if(slope_diff > biggest_slope_diff){
+   //       best_split = split_idx;
+   //       biggest_slope_diff = slope_diff;
+   //    }
+   // }
+
+   // // Don't ever throw away more than 2/3rds of the clauses.
+   // best_split = max(n / 3, best_split);
 
    // 3.) Filter out and return the clauses corresponding to the left half after the split.
    for(size_t i=0; i<best_split; i++){
@@ -926,6 +969,7 @@ ClauseSet_p IAS_LinearRegressionCut(ClauseSet_p IAS_inferences){
    }
 
    free(evals);
+   free(cdf);
    free(sorted);
 
    return filtered;
@@ -935,8 +979,6 @@ ClauseSet_p IAS_LinearRegressionCut(ClauseSet_p IAS_inferences){
 ClauseSet_p IAS_PercentileCut(ClauseSet_p IAS_inferences, float percentile) {
 
 }
-
-
 
 
 
