@@ -82,8 +82,9 @@ Clause_p SATCheck(ProofState_p state, ProofControl_p control);
 extern int StatePipe;
 extern int ActionPipe;
 extern int RewardPipe;
+extern int sync_num; // number to keep E and RL stuff in sync.
 
-void initRLPipes();
+void initRL();
 void sendRLState(RLProofStateCell);
 int recvRLAction();
 void sendRLReward(float);

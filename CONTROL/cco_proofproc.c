@@ -1072,7 +1072,7 @@ void ProofControlInit(ProofState_p state, ProofControl_p control,
                       HeuristicParms_p params, FVIndexParms_p fvi_params,
                       PStack_p wfcb_defs, PStack_p hcb_defs)
 {
-   initRLPipes();
+   initRL();
 
    PStackPointer sp;
    Scanner_p in;
@@ -1441,17 +1441,22 @@ void ProofStateInit(ProofState_p state, ProofControl_p control)
 int StatePipe;
 int ActionPipe;
 int RewardPipe;
+int sync_num;
 
 
-void initRLPipes(){
+void initRL(){
    StatePipe = open("/tmp/StatePipe", O_WRONLY);
    ActionPipe = open("/tmp/ActionPipe", O_RDONLY);
    RewardPipe = open("/tmp/RewardPipe", O_WRONLY);
+   sync_num = -1; // -1 because it is incremented in each call to sendRLState()
 }
 
 
 void sendRLState(RLProofStateCell state){
-   // printf("state: (%ld, %ld)\n", state.numProcessed, state.numUnprocessed);
+   sync_num++;
+
+   write(StatePipe, &(sync_num), sizeof(int));
+
    write(StatePipe, &(state.numProcessed), sizeof(size_t));
    write(StatePipe, &(state.numUnprocessed), sizeof(size_t));
 }
@@ -1459,16 +1464,20 @@ void sendRLState(RLProofStateCell state){
 
 int recvRLAction(){
    char buff[200];
+
+   read(ActionPipe, buff, sizeof(int));
+   int sync_num_remote = *((int*)buff);
+
    read(ActionPipe, buff, sizeof(int));
    int action = *((int*)buff);
    
-   // printf("action: %d\n", action);
+   assert(sync_num_remote == sync_num);
    return action;
 }
 
 
 void sendRLReward(float reward){
-   // printf("reward: %f\n", reward);
+   write(RewardPipe, &(sync_num), sizeof(int));
    write(RewardPipe, &reward, sizeof(float));
 }
 
