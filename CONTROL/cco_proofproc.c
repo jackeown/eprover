@@ -916,7 +916,7 @@ ClauseSet_p IAS_LinearRegressionCut(ClauseSet_p IAS_inferences){
       while(evals[num_clauses_seen] < x){
          num_clauses_seen++;
       }
-      cdf[i] = num_clauses_seen / n;
+      cdf[i] = num_clauses_seen / (float) n;
    }
 
 
@@ -931,6 +931,7 @@ ClauseSet_p IAS_LinearRegressionCut(ClauseSet_p IAS_inferences){
       if(slope_diff > biggest_slope_diff){
          best_split = split_idx;
          biggest_slope_diff = slope_diff;
+         // printf("Best split, biggest_slope_diff: (%ld, %f)\n", best_split, biggest_slope_diff);
       }
    }
 
