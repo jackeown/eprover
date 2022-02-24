@@ -1449,6 +1449,11 @@ void initRL(){
    ActionPipe = open("/tmp/ActionPipe", O_RDONLY);
    RewardPipe = open("/tmp/RewardPipe", O_WRONLY);
    sync_num = -1; // -1 because it is incremented in each call to sendRLState()
+
+   for(int i=0; i<NUM_CEFs; i++){
+      rlstate.queuePickCounts[i] = 0;
+      rlstate.queuePickWeightSum[i] = 0;
+   }
 }
 
 
@@ -1459,6 +1464,15 @@ void sendRLState(RLProofStateCell state){
 
    write(StatePipe, &(state.numProcessed), sizeof(size_t));
    write(StatePipe, &(state.numUnprocessed), sizeof(size_t));
+
+   for(int i=0; i<NUM_CEFs; i++){
+      write(StatePipe, state.queuePickCounts + i, sizeof(size_t));
+   }
+
+   for(int i=0; i<NUM_CEFs; i++){
+      write(StatePipe, state.queuePickWeightSum + i, sizeof(float));
+   }
+
 }
 
 
@@ -1472,6 +1486,10 @@ int recvRLAction(){
    int action = *((int*)buff);
    
    assert(sync_num_remote == sync_num);
+
+   rlstate.queuePickCounts[action]++;
+   rlstate.queuePickWeightSum[action]++;
+
    return action;
 }
 
@@ -1509,14 +1527,14 @@ Clause_p ProcessClause(ProofState_p state, ProofControl_p control,
 
    //////// Jack McKeown's Reinforcement Learning Idea ///////////////////
    // 1.) Send RL proof "state" to agent
-   RLProofStateCell rlstate;
    rlstate.numProcessed = state->processed_count;
    rlstate.numUnprocessed = ClauseSetCardinality(state->unprocessed);
    sendRLState(rlstate);
 
    // 2.) Receive "action" from agent 
    //     (to become control->hcb->current_eval to tell which queue to select from)
-   control->hcb->current_eval = recvRLAction();
+   size_t action = recvRLAction();
+   control->hcb->current_eval = action;
 
    // 3.) Send "reward" to agent 
    //     (so that the external guidance can learn)
@@ -1525,6 +1543,9 @@ Clause_p ProcessClause(ProofState_p state, ProofControl_p control,
 
    clause = control->hcb->hcb_select(control->hcb,
                                      state->unprocessed);
+
+   rlstate.queuePickWeightSum[action] += ClauseWeight(clause, 1,1,1,1,1,1, false);
+
    if(!clause)
    {
       sendRLReward(0.0);

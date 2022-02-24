@@ -36,14 +36,18 @@ Changes
 /*                    Data type declarations                           */
 /*---------------------------------------------------------------------*/
 
-
+#define NUM_CEFs 75
 
 typedef struct rlproofstate 
 {
    size_t numProcessed;
    size_t numUnprocessed;
+   size_t queuePickCounts[NUM_CEFs];
+   float queuePickWeightSum[NUM_CEFs];
 } RLProofStateCell, *RLProofState_p;
 
+
+RLProofStateCell rlstate;
 
 
 typedef struct proofcontrolcell
