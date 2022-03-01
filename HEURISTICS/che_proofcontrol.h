@@ -47,7 +47,6 @@ typedef struct rlproofstate
 } RLProofStateCell, *RLProofState_p;
 
 
-RLProofStateCell rlstate;
 
 
 typedef struct proofcontrolcell
@@ -74,8 +73,9 @@ typedef HCB_p (*HCBCreateFun)(HCBARGUMENTS);
 /*                Exported Functions and Variables                     */
 /*---------------------------------------------------------------------*/
 
-extern  char* DefaultWeightFunctions;
-extern  char* DefaultHeuristics;
+extern char* DefaultWeightFunctions;
+extern char* DefaultHeuristics;
+
 
 #define ProofControlCellAlloc() \
    (ProofControlCell*)SizeMalloc(sizeof(ProofControlCell))

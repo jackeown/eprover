@@ -1441,6 +1441,7 @@ void ProofStateInit(ProofState_p state, ProofControl_p control)
 int StatePipe;
 int ActionPipe;
 int RewardPipe;
+RLProofStateCell rlstate;
 int sync_num;
 
 
