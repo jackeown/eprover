@@ -1446,9 +1446,18 @@ int sync_num;
 
 
 void initRL(){
-   StatePipe = open("/tmp/StatePipe", O_WRONLY);
-   ActionPipe = open("/tmp/ActionPipe", O_RDONLY);
-   RewardPipe = open("/tmp/RewardPipe", O_WRONLY);
+   printf("Initializing Reinforcement Learning...\n");
+
+   char* state_pipe_path = (state_pipe_path = getenv("E_RL_STATEPIPE_PATH")) ? state_pipe_path : "/tmp/StatePipe1";
+   char* action_pipe_path = (action_pipe_path = getenv("E_RL_ACTIONPIPE_PATH")) ? action_pipe_path : "/tmp/ActionPipe1";
+   char* reward_pipe_path = (reward_pipe_path = getenv("E_RL_REWARDPIPE_PATH")) ? reward_pipe_path : "/tmp/RewardPipe1";
+
+   printf("State Pipe Path: %s\n", state_pipe_path);
+
+
+   StatePipe = open(state_pipe_path, O_WRONLY);
+   ActionPipe = open(action_pipe_path, O_RDONLY);
+   RewardPipe = open(reward_pipe_path, O_WRONLY);
    sync_num = -1; // -1 because it is incremented in each call to sendRLState()
 
    for(int i=0; i<NUM_CEFs; i++){
