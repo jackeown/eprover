@@ -42,8 +42,13 @@ typedef struct rlproofstate
 {
    size_t numProcessed;
    size_t numUnprocessed;
+   
+   float processedAvgWeight;
+   float unprocessedAvgWeight;
+   
    size_t queuePickCounts[NUM_CEFs];
    float queuePickWeightSum[NUM_CEFs];
+
 } RLProofStateCell, *RLProofState_p;
 
 

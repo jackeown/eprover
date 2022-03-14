@@ -1466,13 +1466,16 @@ void sendRLState(RLProofStateCell state){
    write(StatePipe, &(state.numProcessed), sizeof(size_t));
    write(StatePipe, &(state.numUnprocessed), sizeof(size_t));
 
-   for(int i=0; i<NUM_CEFs; i++){
-      write(StatePipe, state.queuePickCounts + i, sizeof(size_t));
-   }
+   write(StatePipe, &(state.processedAvgWeight), sizeof(float));
+   write(StatePipe, &(state.unprocessedAvgWeight), sizeof(float));
 
-   for(int i=0; i<NUM_CEFs; i++){
-      write(StatePipe, state.queuePickWeightSum + i, sizeof(float));
-   }
+   // for(int i=0; i<NUM_CEFs; i++){
+   //    write(StatePipe, state.queuePickCounts + i, sizeof(size_t));
+   // }
+
+   // for(int i=0; i<NUM_CEFs; i++){
+   //    write(StatePipe, state.queuePickWeightSum + i, sizeof(float));
+   // }
 
 }
 
@@ -1489,7 +1492,6 @@ int recvRLAction(){
    assert(sync_num_remote == sync_num);
 
    rlstate.queuePickCounts[action]++;
-   rlstate.queuePickWeightSum[action]++;
 
    return action;
 }
@@ -1498,6 +1500,10 @@ int recvRLAction(){
 void sendRLReward(float reward){
    write(RewardPipe, &(sync_num), sizeof(int));
    write(RewardPipe, &reward, sizeof(float));
+
+   if (reward == 1.0){
+      printf("RL thinks proof is found?!\n");
+   }
 }
 
 
@@ -1529,7 +1535,26 @@ Clause_p ProcessClause(ProofState_p state, ProofControl_p control,
    //////// Jack McKeown's Reinforcement Learning Idea ///////////////////
    // 1.) Send RL proof "state" to agent
    rlstate.numProcessed = state->processed_count;
+
+   long long total = 0;
+   total += ClauseSetStandardWeight(state->processed_neg_units);
+   total += ClauseSetStandardWeight(state->processed_non_units);
+   total += ClauseSetStandardWeight(state->processed_pos_eqns);
+   total += ClauseSetStandardWeight(state->processed_pos_rules);
+   if (rlstate.numProcessed)
+      rlstate.processedAvgWeight = total / (float) rlstate.numProcessed;
+   else
+      rlstate.processedAvgWeight = -1.0;
+
    rlstate.numUnprocessed = ClauseSetCardinality(state->unprocessed);
+   if (rlstate.numUnprocessed)
+      rlstate.unprocessedAvgWeight = ClauseSetStandardWeight(state->unprocessed) / (float) rlstate.numUnprocessed;
+   else
+      rlstate.unprocessedAvgWeight = -1.0;
+
+   // state->unprocessed
+
+
    sendRLState(rlstate);
 
    // 2.) Receive "action" from agent 
@@ -1613,8 +1638,12 @@ Clause_p ProcessClause(ProofState_p state, ProofControl_p control,
       if(resclause)
       {
          PStackPushP(state->extract_roots, resclause);
+         sendRLReward(1.0);
       }
-      sendRLReward(1.0);
+      else{
+         sendRLReward(0.0);
+      }
+      
       return resclause;
    }
 
