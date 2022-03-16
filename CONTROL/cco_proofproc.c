@@ -1543,7 +1543,10 @@ Clause_p ProcessClause(ProofState_p state, ProofControl_p control,
 
    //////// Jack McKeown's Reinforcement Learning Idea ///////////////////
    // 1.) Send RL proof "state" to agent
-   rlstate.numProcessed = state->processed_count;
+   rlstate.numProcessed = ClauseSetCardinality(state->processed_neg_units) \
+                        + ClauseSetCardinality(state->processed_non_units) \
+                        + ClauseSetCardinality(state->processed_pos_eqns) \
+                        + ClauseSetCardinality(state->processed_pos_rules);
 
    long long total = 0;
    total += ClauseSetStandardWeight(state->processed_neg_units);
