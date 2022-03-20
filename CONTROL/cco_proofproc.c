@@ -1956,8 +1956,8 @@ Clause_p Saturate(ProofState_p state, ProofControl_p control, long
       // Filters IAS_inferences clause set via so-called                   //
       // "linear regression cut" on clause eval func evals.                //
       // and appends them to the unprocessed set if it is empty.
-
-      if(ClauseSetEmpty(state->unprocessed)){
+      bool not_in_presaturation_interreduction = (control->heuristic_parms.selection_strategy != SelectNoGeneration);
+      if(ClauseSetEmpty(state->unprocessed) && not_in_presaturation_interreduction){
 
          if(ClauseSetEmpty(state->IAS_inferences)){
             break;
