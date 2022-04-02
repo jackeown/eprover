@@ -895,14 +895,14 @@ ClauseSet_p IAS_LinearRegressionCut(ClauseSet_p IAS_inferences){
 
    ClauseSet_p filtered = ClauseSetAlloc();
 
-   // 1.) Sort inference evaluations into "evals" list.
+// 1.) Sort inference evaluations into "evals" list.
    IdxClause* sorted = sort(IAS_inferences);
    float* evals = SizeMalloc(n * sizeof(float));
    for(size_t i=0; i<n; i++){
       evals[i] = IAS_filter_val(sorted[i].clause);
    }
 
-   // 1.5) Get CDF
+// 1.5) Get CDF
    size_t cdf_resolution = 200;
    float min_eval = evals[0];
    float max_eval = evals[n-1];
@@ -913,7 +913,7 @@ ClauseSet_p IAS_LinearRegressionCut(ClauseSet_p IAS_inferences){
    float x = min_eval;
    for(size_t i=0; i<cdf_resolution; i++){
       x += dx;
-      while(evals[num_clauses_seen] < x){
+      while(evals[num_clauses_seen] < x && num_clauses_seen < n){
          num_clauses_seen++;
       }
       cdf[i] = num_clauses_seen / (float) n;
@@ -931,7 +931,7 @@ ClauseSet_p IAS_LinearRegressionCut(ClauseSet_p IAS_inferences){
       if(slope_diff > biggest_slope_diff){
          best_split = split_idx;
          biggest_slope_diff = slope_diff;
-         // printf("Best split, biggest_slope_diff: (%ld, %f)\n", best_split, biggest_slope_diff);
+         printf("Best split, biggest_slope_diff: (%ld, %f)\n", best_split, biggest_slope_diff);
       }
    }
 
@@ -1973,9 +1973,11 @@ Clause_p Saturate(ProofState_p state, ProofControl_p control, long
 
          // Filter IAS_inferences
          fprintf(stdout, "Begin Filtering IAS_inferences...%ld\n", state->IAS_inferences->members);
+         fflush(stdout);
          ClauseSet_p filtered = IAS_LinearRegressionCut(state->IAS_inferences);
          // ClauseSet_p filtered = state->IAS_inferences;
          fprintf(stdout, "Done Filtering IAS_inferences...%ld\n", filtered->members);
+         fflush(stdout);
 
 
          char filename[200];
