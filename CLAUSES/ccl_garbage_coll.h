@@ -1,25 +1,22 @@
 /*-----------------------------------------------------------------------
 
-File  : ccl_garbage_coll.h
+  File  : ccl_garbage_coll.h
 
-Author: Stephan Schulz (schulz@eprover.org)
+  Author: Stephan Schulz (schulz@eprover.org)
 
-Contents
+  Contents
 
-  High-level support for the term cell garbage collection. This
-  integrates a term bank and all clause- and formulasets which use
-  terms from this bank.
+  High-level garbage collection (which needs clause - and
+  formulasets). This is complemented by cte_garbage_coll.[ch] for the
+  lower-level functions.
 
-  Copyright 2010 by the author.
+  Copyright 2010-2022 by the author.
   This code is released under the GNU General Public Licence and
   the GNU Lesser General Public License.
   See the file COPYING in the main E directory for details..
   Run "eprover -h" for contact information.
 
-Changes
-
-<1> Sat Mar 20 09:26:51 CET 2010
-    New
+  Created: Sat Mar 20 09:26:51 CET 2010
 
 -----------------------------------------------------------------------*/
 
@@ -37,37 +34,14 @@ Changes
 /*---------------------------------------------------------------------*/
 
 
-typedef struct gc_admin_cell
-{
-   TB_p    bank;
-   PTree_p clause_sets;
-   PTree_p formula_sets;
-}GCAdminCell, *GCAdmin_p;
-
-
 /*---------------------------------------------------------------------*/
 /*                Exported Functions and Variables                     */
 /*---------------------------------------------------------------------*/
 
-#define GCAdminCellAlloc()    (GCAdminCell*)SizeMalloc(sizeof(GCAdminCell))
-#define GCAdminCellFree(junk) SizeFree(junk, sizeof(GCAdminCell))
-
-GCAdmin_p GCAdminAlloc(TB_p bank);
-void      GCAdminFree(GCAdmin_p junk);
-void      GCRegisterFormulaSet(GCAdmin_p gc, FormulaSet_p set);
-void      GCRegisterClauseSet(GCAdmin_p gc, ClauseSet_p set);
-void      GCDeregisterFormulaSet(GCAdmin_p gc, FormulaSet_p set);
-void      GCDeregisterClauseSet(GCAdmin_p gc, ClauseSet_p set);
-
-long      GCCollect(GCAdmin_p gc);
+long TBGCCollect(TB_p bank);
 
 #endif
 
 /*---------------------------------------------------------------------*/
 /*                        End of File                                  */
 /*---------------------------------------------------------------------*/
-
-
-
-
-

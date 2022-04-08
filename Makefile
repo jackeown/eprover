@@ -19,12 +19,13 @@ include Makefile.vars
 
 # Project specific variables
 
-PROJECT  = E
+
+PROJECT  = $(shell basename `pwd`)
 
 LIBS     = CONTRIB BASICS INOUT TERMS ORDERINGS CLAUSES PROPOSITIONAL LEARN \
            PCL2 HEURISTICS CONTROL
 HEADERS  = $(LIBS) EXTERNAL PROVER
-CODE     = $(LIBS) SIMPLE_APPS EXTERNAL  PROVER
+CODE     = $(LIBS) SIMPLE_APPS EXTERNAL PROVER
 PARTS    = $(CODE) DOC
 
 
@@ -73,6 +74,7 @@ commit_id:
 
 # Build a distribution
 distrib: default_config commit_id man documentation cleandist
+	@echo $(MYVAR)
 	@echo "Did you think about: "
 	@echo " - Changing the bibliographies to local version"
 	@echo " - increasing the dev version number and committing to git?"
@@ -94,10 +96,16 @@ starexec:
 	echo $(STAREXECPATH)
 	rm -rf $(STAREXECPATH)
 	find . -name ".#*"  -exec rm {} \;
+	make clean
 	./configure --bindir="."
-	touch CLAUSES/ccl_satinterface.c
 	make
 	./configure --prefix=$(STAREXECPATH)
+	make install
+
+	make clean
+	./configure --bindir="." --enable-ho
+	make
+	./configure --prefix=$(STAREXECPATH) --enable-ho
 	make install
 
 	cp etc/STAREXEC2.2/starexec_run* $(STAREXECPATH)/bin
@@ -145,18 +153,19 @@ config:
 # Configure and copy executables to the installation directory
 install:
 	-sh -c 'mkdir -p $(EXECPATH)'
-	-sh -c 'development_tools/e_install PROVER/eprover      $(EXECPATH)'
-	-sh -c 'development_tools/e_install PROVER/epclextract  $(EXECPATH)'
-	-sh -c 'development_tools/e_install PROVER/e_stratpar   $(EXECPATH)'
-	-sh -c 'development_tools/e_install PROVER/eground      $(EXECPATH)'
-	-sh -c 'development_tools/e_install PROVER/e_ltb_runner $(EXECPATH)'
+	-sh -c 'development_tools/e_install PROVER/$(EPROVER_BIN) $(EXECPATH)'
+	-sh -c 'development_tools/e_install PROVER/eprover-ho     $(EXECPATH)'
+	-sh -c 'development_tools/e_install PROVER/epclextract    $(EXECPATH)'
+	-sh -c 'development_tools/e_install PROVER/e_stratpar     $(EXECPATH)'
+	-sh -c 'development_tools/e_install PROVER/eground        $(EXECPATH)'
+	-sh -c 'development_tools/e_install PROVER/e_ltb_runner   $(EXECPATH)'
 	-sh -c 'development_tools/e_install PROVER/e_deduction_server $(EXECPATH)'
-	-sh -c 'development_tools/e_install PROVER/e_axfilter   $(EXECPATH)'
-	-sh -c 'development_tools/e_install PROVER/checkproof   $(EXECPATH)'
-	-sh -c 'development_tools/e_install PROVER/ekb_create   $(EXECPATH)'
-	-sh -c 'development_tools/e_install PROVER/ekb_delete   $(EXECPATH)'
-	-sh -c 'development_tools/e_install PROVER/ekb_ginsert  $(EXECPATH)'
-	-sh -c 'development_tools/e_install PROVER/ekb_insert   $(EXECPATH)'
+	-sh -c 'development_tools/e_install PROVER/e_axfilter     $(EXECPATH)'
+	-sh -c 'development_tools/e_install PROVER/checkproof     $(EXECPATH)'
+	-sh -c 'development_tools/e_install PROVER/ekb_create     $(EXECPATH)'
+	-sh -c 'development_tools/e_install PROVER/ekb_delete     $(EXECPATH)'
+	-sh -c 'development_tools/e_install PROVER/ekb_ginsert    $(EXECPATH)'
+	-sh -c 'development_tools/e_install PROVER/ekb_insert     $(EXECPATH)'
 	-sh -c 'development_tools/e_install CONTRIB/picosat-965/picosat $(EXECPATH)'
 	-sh -c 'mkdir -p $(MANPATH)'
 	-sh -c 'development_tools/e_install DOC/man/eprover.1      $(MANPATH)'

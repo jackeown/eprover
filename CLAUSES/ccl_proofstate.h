@@ -45,7 +45,6 @@ typedef struct proofstatecell
    TB_p          terms;
    TB_p          tmp_terms;
    VarBank_p     freshvars;
-   GCAdmin_p     gc_terms;
    FormulaSet_p  f_ax_archive;
    FormulaSet_p  f_axioms;
    ClauseSet_p   axioms;
@@ -88,6 +87,7 @@ typedef struct proofstatecell
    unsigned long backward_rewritten_count;
    unsigned long backward_rewritten_lit_count;
    unsigned long generated_count;
+   unsigned long aggressive_forward_subsumed_count;
    unsigned long generated_lit_count;
    unsigned long non_trivial_generated_count;
    unsigned long context_sr_count;

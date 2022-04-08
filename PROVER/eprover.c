@@ -8,13 +8,13 @@
 
   Main program for the E equational theorem prover.
 
-  Copyright 1998-2018 by the authors.
+  Copyright 1998-2021 by the authors.
   This code is released under the GNU General Public Licence and
   the GNU Lesser General Public License.
   See the file COPYING in the main E directory for details..
   Run "eprover -h" for contact information.
 
-  Created: Tue Jun  9 01:32:15 MET DST 1998 - New.
+  Created: Tue Jun  9 01:32:15 MET DST 1998
 
 -----------------------------------------------------------------------*/
 
@@ -55,14 +55,17 @@ FVIndexParms_p    fvi_parms;
 bool              print_sat = false,
    print_full_deriv = false,
    print_statistics = false,
+   proof_statistics = false,
    filter_sat = false,
    print_rusage = false,
+   print_strategy = false,
    print_pid = false,
    print_version = false,
    outinfo = false,
    error_on_empty = false,
    pcl_full_terms = true,
    indexed_subsumption = true,
+   syntax_only = false,
    prune_only = false,
    new_cnf = true,
    cnf_only = false,
@@ -81,6 +84,7 @@ long              step_limit = LONG_MAX,
    proc_limit = LONG_MAX,
    unproc_limit = LONG_MAX,
    total_limit = LONG_MAX,
+   cores       = 1,
    generated_limit = LONG_MAX,
    relevance_prune_level = 0,
    miniscope_limit = 1048576;
@@ -162,6 +166,7 @@ ProofState_p parse_spec(CLState_p state,
                                NULL,
                                &skip_includes);
       // exit(-1);
+      //printf("Set complete\n");
       CheckInpTok(in, NoToken);
       DestroyScanner(in);
    }
@@ -181,6 +186,7 @@ ProofState_p parse_spec(CLState_p state,
    }
    *ax_no = parsed_ax_no;
 
+   //printf("Returning set\n");
    return proofstate;
 }
 
@@ -394,7 +400,11 @@ int main(int argc, char* argv[])
 
    OpenGlobalOut(outname);
    print_info();
-
+   if(print_strategy)
+   {
+      HeuristicParmsPrint(stdout, h_parms);
+      exit(NO_ERROR);
+   }
 
    if(state->argc ==  0)
    {
@@ -405,10 +415,16 @@ int main(int argc, char* argv[])
                            error_on_empty, free_symb_prop,
                            &parsed_ax_no);
 
+   if(syntax_only)
+   {
+      fprintf(GlobalOut, "\n# Parsing successful!\n");
+      TSTPOUT(GlobalOut, "Unknown");
+      goto cleanup1;
+   }
+
    relevancy_pruned += ProofStateSinE(proofstate, sine);
    relevancy_pruned += ProofStateRelevancyProcess(proofstate,
                                                   relevance_prune_level);
-
    if(app_encode)
    {
       FormulaSetAppEncode(stdout, proofstate->f_axioms);
@@ -417,7 +433,8 @@ int main(int argc, char* argv[])
 
    if(strategy_scheduling)
    {
-      ExecuteSchedule(StratSchedule, h_parms, print_rusage);
+      // ExecuteSchedule(chosen_schedule, h_parms, print_rusage);
+      ExecuteScheduleMultiCore(chosen_schedule, h_parms, print_rusage, cores);
    }
 
    FormulaSetDocInital(GlobalOut, OutputLevel, proofstate->f_axioms);
@@ -453,7 +470,6 @@ int main(int argc, char* argv[])
                                 proofstate->axioms,
                                 proofstate->terms,
                                 proofstate->freshvars,
-                                proofstate->gc_terms,
                                 miniscope_limit);
    }
    else
@@ -462,8 +478,7 @@ int main(int argc, char* argv[])
                                proofstate->f_ax_archive,
                                proofstate->axioms,
                                proofstate->terms,
-                               proofstate->freshvars,
-                               proofstate->gc_terms);
+                               proofstate->freshvars);
    }
    VERBOUT("Clausification done.\n");
 
@@ -471,7 +486,6 @@ int main(int argc, char* argv[])
    {
       VERBOUT("CNFization done\n");
    }
-   //HeuristicParmsPrint(stdout, h_parms);
 
    raw_clause_no = proofstate->axioms->members;
    ProofStateLoadWatchlist(proofstate, watchlist_filename, parse_format);
@@ -558,6 +572,15 @@ int main(int argc, char* argv[])
    assert(problemType != PROBLEM_HO || proofcontrol->ocb->type == KBO6);
 #endif
 
+   if(SigHasUnimplementedInterpretedSymbols(proofstate->signature)||
+      (proofcontrol->heuristic_parms.selection_strategy ==  SelectNoGeneration) ||
+      (proofcontrol->heuristic_parms.order_params.lit_cmp == LCTFOEqMax)||
+      (!h_parms->enable_eq_factoring)||
+      (!h_parms->enable_neg_unit_paramod))
+   {
+      inf_sys_complete = false;
+   }
+
    if(!success)
    {
       success = Saturate(proofstate, proofcontrol, step_limit,
@@ -565,11 +588,6 @@ int main(int argc, char* argv[])
                          generated_limit, tb_insert_limit, answer_limit);
    }
    PERF_CTR_EXIT(SatTimer);
-
-   if(SigHasUnimplementedInterpretedSymbols(proofstate->signature))
-   {
-      inf_sys_complete = false;
-   }
 
    out_of_clauses = ClauseSetEmpty(proofstate->unprocessed);
    if(filter_sat)
@@ -631,10 +649,13 @@ int main(int argc, char* argv[])
                                     deriv,
                                     proofstate->signature,
                                     print_derivation,
-                                    OutputLevel||print_statistics);
+                                    proof_statistics);
          ProofStateAnalyseGC(proofstate);
-         ProofStateTrain(proofstate, proc_training_data&TSPrintPos,
-                         proc_training_data&TSPrintNeg);
+         if(proc_training_data)
+         {
+            ProofStateTrain(proofstate, proc_training_data&TSPrintPos,
+                            proc_training_data&TSPrintNeg);
+         }
       }
       DerivationFree(deriv);
    }
@@ -738,7 +759,7 @@ int main(int argc, char* argv[])
                                    proofstate->extract_roots,
                                    proofstate->signature,
                                    print_derivation,
-                                   OutputLevel||print_statistics);
+                                   proof_statistics);
       }
 
    }
@@ -910,6 +931,9 @@ CLState_p process_options(int argc, char* argv[])
                                    PrintProofObject);
             print_derivation = MAX(print_derivation, POList);
             break;
+      case OPT_PROOF_STATS:
+            proof_statistics = true;
+            break;
       case OPT_PROOF_GRAPH:
             PrintProofObject = MAX(1, PrintProofObject);
             print_derivation = CLStateGetIntArg(handle, arg)+1;
@@ -958,9 +982,12 @@ CLState_p process_options(int argc, char* argv[])
             CheckOptionLetterString(filterdesc, "eigEIGaA", "--filter-saturated");
             filter_sat = true;
             break;
+      case OPT_SYNTAX_ONLY:
+            syntax_only = true;
+            break;
       case OPT_PRUNE_ONLY:
             OutputLevel = 4;
-            prune_only   = true;
+            prune_only  = true;
             break;
       case OPT_CNF_ONLY:
             outdesc    = "teigEIG";
@@ -1029,6 +1056,9 @@ CLState_p process_options(int argc, char* argv[])
             break;
       case OPT_RUSAGE_INFO:
             print_rusage = true;
+            break;
+      case OPT_PRINT_STRATEGY:
+            print_strategy = true;
             break;
       case OPT_STEP_LIMIT:
             step_limit = CLStateGetIntArg(handle, arg);
@@ -1116,6 +1146,23 @@ CLState_p process_options(int argc, char* argv[])
       case OPT_SATAUTO_SCHED:
             strategy_scheduling = true;
             break;
+      case OPT_AUTOSCHEDULE_KIND:
+            if(strcmp(arg, "SH")==0)
+            {
+               chosen_schedule = (ScheduleCell*)CASC_SH_SCHEDULE;
+            }
+            else if(strcmp(arg, "CASC")==0)
+            {
+               chosen_schedule = (ScheduleCell*)CASC_SCHEDULE;
+            }
+            else
+            {
+               Error("There are only two schedules available: SH and CASC", USAGE_ERROR);
+            }
+            break;
+      case OPT_MULTI_CORE:
+            cores = CLStateGetIntArgCheckRange(handle, arg, 0, INT_MAX);
+            break;
       case OPT_NO_PREPROCESSING:
             h_parms->no_preproc = true;
             break;
@@ -1127,6 +1174,25 @@ CLState_p process_options(int argc, char* argv[])
             break;
       case OPT_NO_EQ_UNFOLD:
             h_parms->eqdef_incrlimit = LONG_MIN;
+            break;
+      case OPT_INTRO_GOAL_DEFS:
+            if(strcmp(arg, "All")==0)
+            {
+               h_parms->add_goal_defs_pos = true;
+               h_parms->add_goal_defs_neg = true;
+            }
+            else if(strcmp(arg, "Neg")==0)
+            {
+               h_parms->add_goal_defs_neg = true;
+            }
+            else
+            {
+                Error("Option --goal-defs accepts only All or Neg.",
+                     USAGE_ERROR);
+            }
+            break;
+      case OPT_FINE_GOAL_DEFS:
+            h_parms->add_goal_defs_subterms = true;
             break;
       case OPT_SINE:
             sine = arg;
@@ -1193,10 +1259,7 @@ CLState_p process_options(int argc, char* argv[])
                Error(DStrView(err), USAGE_ERROR);
                DStrFree(err);
             }
-            if(h_parms->selection_strategy == SelectNoGeneration)
-            {
-               inf_sys_complete = false;
-            }
+            // Incomplete selection is noted later
             break;
       case OPT_POS_LITSEL_MIN:
             h_parms->pos_lit_sel_min = CLStateGetIntArg(handle, arg);
@@ -1549,6 +1612,9 @@ CLState_p process_options(int argc, char* argv[])
       case OPT_WATCHLIST_NO_SIMPLIFY:
             h_parms->watchlist_simplify = false;
             break;
+      case OPT_FW_SUMBSUMPTION_AGGRESSIVE:
+            h_parms->forward_subsumption_aggressive = true;
+            break;
       case OPT_NO_INDEXED_SUBSUMPTION:
             fvi_parms->cspec.features = FVINoFeatures;
             break;
@@ -1663,6 +1729,7 @@ CLState_p process_options(int argc, char* argv[])
             PStackPushP(wfcb_definitions, arg);
             break;
       case OPT_DEFINE_HEURISTIC:
+            /* Note that we postprocess this at the end */
             PStackPushP(hcb_definitions, arg);
             break;
       case OPT_FREE_NUMBERS:
@@ -1743,6 +1810,12 @@ CLState_p process_options(int argc, char* argv[])
             break;
       }
    }
+   if(!PStackEmpty(hcb_definitions))
+   {
+      h_parms->heuristic_def = SecureStrdup(PStackTopP(hcb_definitions));
+   }
+
+
    if((HardTimeLimit!=RLIM_INFINITY)||(SoftTimeLimit!=RLIM_INFINITY))
    {
       if(SoftTimeLimit!=RLIM_INFINITY)

@@ -47,7 +47,10 @@ typedef enum
    OPT_VERBOSE,
    OPT_OUTPUT,
    OPT_OUTDIR,
-   OPT_VARIANTS,
+   OPT_VARIANTS27,
+   OPT_VARIANTS28,
+   OPT_VARIANTS28_HO,
+   OPT_VARIANTS28_25,
    OPT_NEWSCHEDULE,
    OPT_INTERACTIVE,
    OPT_PRINT_STATISTICS,
@@ -96,11 +99,33 @@ OptCell opts[] =
    "Directory for individual problem output files. Default is the current"
     " working directory."},
 
-   {OPT_VARIANTS,
+   {OPT_VARIANTS27,
     0, "variants27",
     NoArg,  NULL,
     "Handle different variants for each problem base name as required for "
     "CASC-27. This is very specific hack."},
+
+   {OPT_VARIANTS28,
+    0, "variants28",
+    NoArg,  NULL,
+    "Handle different variants for each problem base name as required for "
+    "CASC-28 (without higher-order support). This is very specific hack. "},
+
+   {OPT_VARIANTS28_HO,
+    0, "variants28-ho",
+    NoArg,  NULL,
+    "Handle different variants for each problem base name as required for "
+    "CASC-28, including the TH0-variant. This is very specific hack. Note "
+    "that this requires eprover-ho for the third variant."},
+
+   {OPT_VARIANTS28_25,
+    0, "variants28-25",
+    NoArg,  NULL,
+    "Handle different variants for each problem base name as required for "
+    "CASC-28, but run E-2.5 (prerelease) as the base prover. This is a "
+    "really very specific hack, to enable E 2.5 as the CASC-J10 LTB winner to "
+    "compete in CASC-28. It requires manual installation of the eprover-2.5 "
+    "binary in the StarExec package."},
 
    {OPT_INTERACTIVE,
     'i', "interactive",
@@ -143,11 +168,23 @@ char              *outdir         = NULL;
 long              total_wtc_limit = 0;
 bool              interactive     = false;
 bool              app_encode      = false;
-bool              use_variants    = false;
+char**            use_variants    = NULL;
+char**            provers         = NULL;
 ProblemType problemType  = PROBLEM_NOT_INIT;
 
 
-char* variants[] = {"+4", "+5", "_4", "_5", NULL};
+char* variants27[] = {"+4", "+5", "_4", "_5", NULL};
+char* provers27[]  = {"./eprover", "./eprover", "./eprover", "./eprover", NULL};
+
+char* variants28[] = {"+1", "_1", NULL};
+char* provers28[]  = {"./eprover", "./eprover", NULL};
+
+char* variants28_ho[] = {"+1", "_1", "^1", NULL};
+char* provers28_ho[]  = {"./eprover", "./eprover", "./eprover-ho", NULL};
+
+char* variants28_25[] = {"+1", "_1", NULL};
+char* provers28_25[]  = {"./eprover-25", "./eprover-25", NULL};
+
 
 /*---------------------------------------------------------------------*/
 /*                      Forward Declarations                           */
@@ -242,7 +279,7 @@ int main(int argc, char* argv[])
       }
       else
       {
-         BatchProcessVariants(spec, variants, start, ScannerGetDefaultDir(in), outdir);
+         BatchProcessVariants(spec, use_variants, provers, start, ScannerGetDefaultDir(in), outdir);
          fprintf(GlobalOut, "# =============== Variant batch done ===========\n\n");
       }
       BatchSpecFree(spec);
@@ -312,8 +349,22 @@ CLState_p process_options(int argc, char* argv[])
       case OPT_OUTDIR:
             outdir = arg;
             break;
-      case OPT_VARIANTS:
-            use_variants = true;
+      case OPT_VARIANTS27:
+            use_variants = variants27;
+            provers = provers27;
+            break;
+      case OPT_VARIANTS28:
+            use_variants = variants28;
+            provers = provers28;
+            break;
+      case OPT_VARIANTS28_HO:
+            use_variants = variants28_ho;
+            provers = provers28_ho;
+            break;
+      case OPT_VARIANTS28_25:
+            use_variants = variants28_25;
+            provers = provers28_25;
+            break;
       case OPT_INTERACTIVE:
             interactive = true;
             break;

@@ -417,6 +417,7 @@ void TermPrintFO(FILE* out, Term_p term, Sig_p sig, DerefType deref)
    }
 }
 
+
 #define PRINT_AT
 
 #ifdef ENABLE_LFHO
@@ -443,7 +444,7 @@ void TermPrintHO(FILE* out, Term_p term, Sig_p sig, DerefType deref)
    term = TermDeref(term, &deref);
 
    if(!TermIsVar(term) &&
-      (SigIsLogicalSymbol(sig, term->f_code) ||
+      ((SigIsLogicalSymbol(sig, term->f_code) && TypeIsBool(term->type)) ||
       TermIsLambda(term)) &&
       term->f_code != SIG_TRUE_CODE &&
       term->f_code != SIG_FALSE_CODE)
@@ -578,6 +579,55 @@ void TermPrintArgList(FILE* out, Term_p *args, int arity, Sig_p sig,
       TermPrintFO(out, args[i], sig, deref);
    }
    putc(')', out);
+}
+
+
+
+/*-----------------------------------------------------------------------
+//
+// Function: TermPrintSimple()
+//
+//   Print a FO term without giving any special semantics to
+//   symbols -- basically prints the serialized syntax tree.
+//
+// Global Variables: TermPrintLists
+//
+// Side Effects    : Output
+//
+/----------------------------------------------------------------------*/
+
+void TermPrintSimple(FILE* out, Term_p term, Sig_p sig)
+{
+   assert(term);
+   assert(sig||TermIsVar(term));
+   // no need to change derefs here -- FOL
+
+   if(TermIsVar(term))
+   {
+      VarPrint(out, term->f_code);
+   }
+   else
+   {
+      fputs(SigFindName(sig, term->f_code), out);
+      if(!TermIsConst(term))
+      {
+         assert(term->args);
+         int i;
+
+         assert(term->arity>=1);
+         putc('(', out);
+
+         TermPrintSimple(out, term->args[0], sig);
+
+         for(i=1; i<term->arity; i++)
+         {
+            putc(',', out);
+            /* putc(' ', out); */
+            TermPrintSimple(out, term->args[i], sig);
+         }
+         putc(')', out);
+      }
+   }
 }
 
 
@@ -2536,10 +2586,13 @@ void TermFOOLPrint(FILE* out, Sig_p sig, TFormula_p form)
          {
            fputs("~", out);
          }
+         PRINT_HO_PAREN(out, '(');
          TermPrint(out, form->args[0], sig, DEREF_NEVER);
+         PRINT_HO_PAREN(out, ')');
       }
       else
       {
+         PRINT_HO_PAREN(out, '(');
          PRINT_HO_PAREN(out, '(');
          TermPrint(out, form->args[0], sig, DEREF_NEVER);
          PRINT_HO_PAREN(out, ')');
@@ -2550,6 +2603,7 @@ void TermFOOLPrint(FILE* out, Sig_p sig, TFormula_p form)
          fputc('=', out);
          PRINT_HO_PAREN(out, '(');
          TermPrint(out, form->args[1], sig, DEREF_NEVER);
+         PRINT_HO_PAREN(out, ')');
          PRINT_HO_PAREN(out, ')');
       }
 
@@ -2587,8 +2641,9 @@ void TermFOOLPrint(FILE* out, Sig_p sig, TFormula_p form)
             TypePrintTSTP(out, sig->type_bank, form->args[0]->type);
          }
       }
-      fputs("]:", out);
+      fputs("]:(", out);
       TermFOOLPrint(out, sig, form->args[1]);
+      fputs(")", out);
    }
    else if(form->f_code == sig->not_code)
    {

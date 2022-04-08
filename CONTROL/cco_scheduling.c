@@ -27,22 +27,39 @@ Changes
 /*                        Global Variables                             */
 /*---------------------------------------------------------------------*/
 
-ScheduleCell StratSchedule[] =
+ScheduleCell _CASC_SCHEDULE[] =
 {
-   {"AutoSched0",  AUTOSCHED0,  "Auto", 0.5   , 0},
-   {"AutoSched1",  AUTOSCHED1,  "Auto", 0.22  , 0},
-   {"AutoSched2",  AUTOSCHED2,  "Auto", 0.0733, 0},
-   {"AutoSched3",  AUTOSCHED3,  "Auto", 0.06  , 0},
-   {"AutoSched4",  AUTOSCHED4,  "Auto", 0.0433, 0},
-   {"AutoSched5",  AUTOSCHED5,  "Auto", 0.03  , 0},
-   {"AutoSched6",  AUTOSCHED6,  "Auto", 0.0166, 0},
-   {"AutoSched7",  AUTOSCHED7,  "Auto", 0.0167, 0},
-   {"AutoSched8",  AUTOSCHED8,  "Auto", 0.0167, 0},
-   {"AutoSched9",  AUTOSCHED9,  "Auto", 0.0167, 0},
-   {NULL,          NoOrdering,  NULL  , 0.0   , 0}
+   {"AutoSched0",  AUTOSCHED0,  "Auto", 0.5   , 0, 1},
+   {"AutoSched1",  AUTOSCHED1,  "Auto", 0.22  , 0, 1},
+   {"AutoSched2",  AUTOSCHED2,  "Auto", 0.0733, 0, 1},
+   {"AutoSched3",  AUTOSCHED3,  "Auto", 0.06  , 0, 1},
+   {"AutoSched4",  AUTOSCHED4,  "Auto", 0.0433, 0, 1},
+   {"AutoSched5",  AUTOSCHED5,  "Auto", 0.0366, 0, 1},
+   {"AutoSched6",  AUTOSCHED6,  "Auto", 0.0167, 0, 1},
+   {"AutoSched7",  AUTOSCHED7,  "Auto", 0.0167, 0, 1},
+   {"AutoSched8",  AUTOSCHED8,  "Auto", 0.0167, 0, 1},
+   {"AutoSched9",  AUTOSCHED9,  "Auto", 0.0167, 0, 1},
+   {NULL,          NoOrdering,  NULL  , 0.0   , 0, 1}
 };
 
+ScheduleCell _CASC_SH_SCHEDULE[] =
+{
+   {"AutoSched0",  AUTOSCHED0,  "Auto", 0.34, 0, 1},
+   {"AutoSched1",  AUTOSCHED1,  "Auto", 0.09, 0, 1},
+   {"AutoSched2",  AUTOSCHED2,  "Auto", 0.09, 0, 1},
+   {"AutoSched3",  AUTOSCHED3,  "Auto", 0.09, 0, 1},
+   {"AutoSched4",  AUTOSCHED4,  "Auto", 0.09, 0, 1},
+   {"AutoSched5",  AUTOSCHED5,  "Auto", 0.08, 0, 1},
+   {"AutoSched6",  AUTOSCHED6,  "Auto", 0.08, 0, 1},
+   {"AutoSched7",  AUTOSCHED7,  "Auto", 0.08, 0, 1},
+   {"AutoSched8",  AUTOSCHED8,  "Auto", 0.08, 0, 1},
+   {"AutoSched9",  AUTOSCHED9,  "Auto", 0.08, 0, 1},
+   {NULL,          NoOrdering,  NULL  , 0.0 , 0, 1}
+};
 
+const ScheduleCell* CASC_SCHEDULE = _CASC_SCHEDULE;
+const ScheduleCell* CASC_SH_SCHEDULE = _CASC_SH_SCHEDULE;
+ScheduleCell* chosen_schedule = _CASC_SCHEDULE;
 /*---------------------------------------------------------------------*/
 /*                      Forward Declarations                           */
 /*---------------------------------------------------------------------*/
@@ -130,6 +147,9 @@ pid_t ExecuteSchedule(ScheduleCell strats[],
    pid_t pid       = 0, respid;
    double run_time = GetTotalCPUTime();
 
+
+   ScheduleTimesInitMultiCore(strats, run_time, 4);
+
    ScheduleTimesInit(strats, run_time);
 
    for(i=0; strats[i].heu_name; i++)
@@ -201,7 +221,7 @@ pid_t ExecuteSchedule(ScheduleCell strats[],
          /* Nothing to do, success reported by the child */
          break;
    case OUT_OF_MEMORY:
-    TSTPOUT(stdout, "ResourceOut");
+         TSTPOUT(stdout, "ResourceOut");
          break;
    case SYNTAX_ERROR:
          /* Should never be possible here */
@@ -240,6 +260,147 @@ pid_t ExecuteSchedule(ScheduleCell strats[],
    }
    exit(status);
    return pid;
+}
+
+
+
+/*-----------------------------------------------------------------------
+//
+// Function: ScheduleTimesInitMultiCore()
+//
+//    Create timings for multi-core-scheduling. This is very naive,
+//    and probably only useful for testing.
+//
+// Global Variables:
+//
+// Side Effects    :
+//
+/----------------------------------------------------------------------*/
+
+void ScheduleTimesInitMultiCore(ScheduleCell sched[], double time_used, int cores)
+{
+   int i;
+   rlim_t sum=0, tmp, limit, total_limit;
+   double
+      nominal_sum = 0.0,
+      actual_sum = 0.0,
+      nominal_rest,
+      actual_rest,
+      frac;
+
+   limit = 0;
+   if(ScheduleTimeLimit)
+   {
+      if(ScheduleTimeLimit>time_used)
+      {
+         limit = ScheduleTimeLimit-time_used;
+      }
+   }
+   else
+   {
+      if(DEFAULT_SCHED_TIME_LIMIT > time_used)
+      {
+         limit = DEFAULT_SCHED_TIME_LIMIT-time_used;
+      }
+   }
+   total_limit = limit*cores;
+
+   for(i=0; sched[i].heu_name; i++)
+   {
+      nominal_rest = 1-nominal_sum;
+      actual_rest  = 1-actual_sum;
+
+      tmp = sched[i].time_fraction*total_limit*(actual_rest/nominal_rest);
+      if(tmp>limit)
+      {
+         tmp = limit;
+      }
+      sched[i].time_absolute = tmp;
+      sum += tmp;
+      frac = (float)tmp/total_limit;
+      nominal_sum += sched[i].time_fraction;
+      actual_sum  += frac;
+
+      fprintf(GlobalOut,
+              "# %s assigned %ju seconds (%f)\n",
+              sched[i].heu_name, (uintmax_t)tmp, frac);
+   }
+   fprintf(GlobalOut,
+           "# Scheduled %d strats onto %d cores with %ju seconds (%ju)\n",
+           i, cores, (uintmax_t)limit, (uintmax_t)sum);
+}
+
+
+/*-----------------------------------------------------------------------
+//
+// Function:  ExecuteScheduleMultiCore()
+//
+//   Execute the hard-coded strategy schedule.
+//
+// Global Variables: SilentTimeOut
+//
+// Side Effects    : Forks, the child runs the proof search, re-sets
+//                   time limits, sets heuristic parameters
+//
+/----------------------------------------------------------------------*/
+
+void ExecuteScheduleMultiCore(ScheduleCell strats[],
+                              HeuristicParms_p  h_parms,
+                              bool print_rusage,
+                              int cores)
+{
+   int i;
+   double run_time = GetTotalCPUTime();
+   EGPCtrl_p handle;
+   EGPCtrlSet_p procs = EGPCtrlSetAlloc();
+
+   ScheduleTimesInitMultiCore(strats, run_time, cores);
+
+   i=0;
+   do
+   {
+      while(strats[i].heu_name &&
+            ((cores-EGPCtrlSetCoresReserved(procs)) >= strats[i].cores))
+      {
+         handle = EGPCtrlCreate(strats[i].heu_name,
+                                strats[i].cores,
+                                strats[i].time_absolute);
+         if(!handle)
+         { /* Child - get out, do work! */
+            h_parms->heuristic_name         = strats[i].heu_name;
+            h_parms->order_params.ordertype = strats[i].ordering;
+            SilentTimeOut = true;
+            return;
+         }
+         else
+         {
+            EGPCtrlSetAddProc(procs, handle);
+         }
+         i++;
+      }
+      handle = EGPCtrlSetGetResult(procs);
+      if(handle)
+      {
+         fprintf(GlobalOut, "# Result found by %s\n", handle->name);
+         fputs(DStrView(handle->output), GlobalOut);
+         fflush(GlobalOut);
+         if(print_rusage)
+         {
+            PrintRusage(GlobalOut);
+         }
+         exit(handle->exit_status);
+      }
+   }while(EGPCtrlSetCardinality(procs));
+
+   EGPCtrlSetFree(procs);
+
+   fprintf(GlobalOut, "# Schedule exhausted\n");
+   TSTPOUT(GlobalOut, "GaveUp");
+   if(print_rusage)
+   {
+      PrintRusage(GlobalOut);
+   }
+   exit(RESOURCE_OUT);
 }
 
 
