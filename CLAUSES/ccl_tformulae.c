@@ -95,7 +95,16 @@ static Term_p __inline__ parse_ho_atom(Scanner_p in, TB_p bank)
    Type_p type;
    Term_p head;
 
-   if((id_type=TermParseOperator(in, id))==FSIdentVar)
+   if(TestInpTok(in, IteToken))
+   {
+      head = ParseIte(in, bank);
+   }
+   else if(TestInpTok(in, LetToken))
+   {
+      head = ParseLet(in, bank);
+      assert(head->type);
+   }
+   else if((id_type=TermParseOperator(in, id))==FSIdentVar)
    {
       /* A variable may be annotated with a sort */
       if(TestInpTok(in, Colon))
@@ -146,8 +155,8 @@ static Term_p normalize_head(Term_p head, Term_p* rest_args, int rest_arity, TB_
    }
    else
    {
-      int total_arity = (TermIsLambda(head) ? 0 : head->arity) + rest_arity;
-      if(TermIsVar(head) || TermIsLambda(head))
+      int total_arity = (TermIsPhonyAppTarget(head) ? 0 : head->arity) + rest_arity;
+      if(TermIsPhonyAppTarget(head))
       {
          total_arity++; // head is going to be the first argument
 
@@ -178,7 +187,7 @@ static Term_p normalize_head(Term_p head, Term_p* rest_args, int rest_arity, TB_
          }
       }
    }
-   
+
    if(!TermIsVar(res) && !TermIsShared(res))
    {
       res = TBTermTopInsert(bank, res);
@@ -294,7 +303,7 @@ static FunCode tptp_quantor_parse(Sig_p sig, Scanner_p in)
    else if (TestInpTok(in, UnivQuantor))
    {
       res = sig->qall_code;
-   } 
+   }
    else
    {
       assert (TestInpTok(in, LambdaQuantor));
@@ -391,7 +400,7 @@ static TFormula_p parse_atom(Scanner_p in, TB_p terms)
    }
    else
    {
-      res = EqnTermsTBTermEncode(terms, lhs, rhs, positive, PENormal);  
+      res = EqnTermsTBTermEncode(terms, lhs, rhs, positive, PENormal);
    }
    return res;
 }
@@ -610,7 +619,7 @@ static TFormula_p assoc_tform_tstp_parse(Scanner_p in, TB_p terms, TFormula_p he
 static TFormula_p applied_tform_tstp_parse(Scanner_p in, TB_p terms, TFormula_p head)
 {
    assert(TestInpTok(in, Application));
-   
+
    const Type_p hd_type = GetHeadType(terms->sig, head);
    assert(hd_type);
    const int max_args = TypeGetMaxArity(hd_type);
@@ -619,10 +628,15 @@ static TFormula_p applied_tform_tstp_parse(Scanner_p in, TB_p terms, TFormula_p 
    bool head_is_logical = !TermIsVar(head) && SigQueryFuncProp(terms->sig, head->f_code, FPFOFOp);
    Term_p arg;
 
+
    while(TestInpTok(in, Application))
    {
       if(i >= max_args)
       {
+         fprintf(stderr, "max args: %d\n", max_args);
+         fprintf(stderr, "type: ");
+         TypePrintTSTP(stderr, terms->sig->type_bank, hd_type);
+         TermPrintDbg(stderr, head, terms->sig, DEREF_NEVER);
          AktTokenError(in, " Too many arguments applied to the symbol",
                        SYNTAX_ERROR);
       }
@@ -630,8 +644,8 @@ static TFormula_p applied_tform_tstp_parse(Scanner_p in, TB_p terms, TFormula_p 
       arg = literal_tform_tstp_parse(in, terms);
       args[i++] = head_is_logical ? EncodePredicateAsEqn(terms, arg) : arg;
    }
-   
-   TFormula_p res = 
+
+   TFormula_p res =
       EncodePredicateAsEqn(terms, normalize_head(head, args, i, terms));
    TermArgTmpArrayFree(args, max_args);
    return res;
@@ -846,10 +860,11 @@ static void tformula_collect_freevars(TB_p bank, TFormula_p form, PTree_p *vars)
 Term_p EncodePredicateAsEqn(TB_p bank, TFormula_p f)
 {
    Sig_p sig = bank->sig;
-   if(problemType == PROBLEM_HO &&
-      (f->f_code > sig->internal_symbols ||
+   if((f->f_code > sig->internal_symbols ||
        f->f_code == SIG_TRUE_CODE ||
        f->f_code == SIG_FALSE_CODE ||
+       f->f_code == SIG_ITE_CODE ||
+       f->f_code == SIG_LET_CODE ||
        TermIsVar(f) ||
        TermIsPhonyApp(f)) &&
       f->type == sig->type_bank->bool_type)
@@ -1436,14 +1451,18 @@ TFormula_p TFormulaTSTPParse(Scanner_p in, TB_p terms)
    {
       op = tptp_operator_parse(terms->sig, in);
       f2 = literal_tform_tstp_parse(in, terms);
-      
+
       if(f1->type == sig->type_bank->bool_type &&
         (op == sig->eqn_code || op == sig->neqn_code))
       {
          assert(f2->type == sig->type_bank->bool_type);
          // if it is bool it is either a literal ((dis)equation) or a formula
          assert(SigIsLogicalSymbol(sig, f1->f_code));
-         assert(SigIsLogicalSymbol(sig, f2->f_code));
+         if(!SigIsLogicalSymbol(sig, f2->f_code))
+         {
+            TermPrintDbg(stderr, f2, terms->sig, DEREF_NEVER);
+            assert(false);
+         }
 
          op = (op == sig->eqn_code) ? sig->equiv_code : sig->xor_code;
       }
@@ -1478,6 +1497,12 @@ TFormula_p TcfTSTPParse(Scanner_p in, TB_p terms)
 
    CheckInpTok(in, TermStartToken|TildeSign|UnivQuantor|OpenBracket);
 
+   bool in_parens = false;
+   if(TestInpTok(in, OpenBracket))
+   {
+      AcceptInpTok(in, OpenBracket);
+      in_parens = true;
+   }
    if(TestInpTok(in, UnivQuantor))
    {
       FunCode quantor;
@@ -1488,17 +1513,11 @@ TFormula_p TcfTSTPParse(Scanner_p in, TB_p terms)
    }
    else
    {
-      bool in_parens = false;
-      if(TestInpTok(in, OpenBracket))
-      {
-         AcceptInpTok(in, OpenBracket);
-         in_parens = true;
-      }
       res = clause_tform_tstp_parse(in, terms);
-      if(in_parens)
-      {
-         AcceptInpTok(in, CloseBracket);
-      }
+   }
+   if(in_parens)
+   {
+      AcceptInpTok(in, CloseBracket);
    }
    return res;
 }

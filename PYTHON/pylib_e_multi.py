@@ -56,6 +56,8 @@ import os
 import os.path
 import getopt
 import subprocess
+import zipfile
+import shutil
 from time import sleep
 import selectors
 
@@ -67,12 +69,12 @@ class id(object):
 
     def newId(self):
         self.count = self.count+1
-        return "%s%d"%(self.prefix,self.count)
+        return "%s%04d"%(self.prefix,self.count)
 
 homeDir = os.path.expanduser("~")
 eRunDir = homeDir+"/EPROVER/RUNDIR"
 eResDir = eRunDir
-eFlatTPTP = homeDir+"/EPROVER/TPTP_7.3.0_FLAT"
+eFlatTPTP = homeDir+"/EPROVER/TPTP_7.5.0_FLAT"
 
 class etask(object):
     ids = id("t")
@@ -102,7 +104,7 @@ class etask(object):
         self.cmd = cmd
         self.proc = subprocess.Popen(cmd, stdin=None,
                                      stdout=subprocess.PIPE,
-                                     stderr=subprocess.PIPE,
+                                     stderr=subprocess.STDOUT,
                                      shell=True,
                                      close_fds=True)
         self.status = "run"
@@ -132,7 +134,8 @@ class job(object):
     def __init__(self, script, problist):
         self.id = job.ids.newId()
 
-        self.logdir = "Job"+self.getId()+"_output/Problems"
+        self.containerdir = "Job"+self.getId()+"_output"
+        self.logdir = self.containerdir+"/Problems"
         self.script = script
         self.stratname = "EFake__E_"+script[len("starexec_run_"):]
         self.problems = []
@@ -184,7 +187,11 @@ class job(object):
         self.cardinality -= 1
         if self.cardinality == 0:
             print("# Job "+self.getId()+" "+self.script+" complete")
-
+            z = zipfile.ZipFile(self.containerdir+".zip" ,"w")
+            z.write(self.containerdir)
+            z.close()
+            shutil.rmtree(self.containerdir)
+            print("# Job "+self.getId()+" zipped")
 
 
 

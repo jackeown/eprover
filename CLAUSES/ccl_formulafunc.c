@@ -46,6 +46,62 @@ typedef TFormula_p (*FormulaMapper)(TFormula_p, TB_p);
 
 /*-----------------------------------------------------------------------
 //
+// Function: flatten_apps()
+//
+//   Apply additional arguments to hd assuming hd needs to be flattened.
+//
+// Global Variables: -
+//
+// Side Effects    : -
+//
+/----------------------------------------------------------------------*/
+
+Term_p flatten_apps(TB_p bank, Term_p hd, Term_p* args, long num_args,
+                    Type_p res_type)
+{
+   Term_p res = TermTopAlloc(hd->f_code, hd->arity + num_args);
+#ifdef NDEBUG
+   res->type = res_type;
+#endif
+   for(long i=0; i < hd->arity; i++)
+   {
+      res->args[i] = hd->args[i];
+   }
+   for(long i=0; i < num_args; i++)
+   {
+      res->args[hd->arity+i] = args[i];
+   }
+
+   res = TBTermTopInsert(bank, res);
+   assert(res->type == res_type);
+   return res;
+}
+
+/*-----------------------------------------------------------------------
+//
+// Function: flatten_apps()
+//
+//   Apply additional arguments to hd assuming hd needs to be flattened.
+//
+// Global Variables: -
+//
+// Side Effects    : -
+//
+/----------------------------------------------------------------------*/
+Term_p flatten_apps_driver(TB_p terms, Term_p t)
+{
+   if(TermIsPhonyApp(t) && !TermIsPhonyAppTarget(t->args[0]))
+   {
+      return flatten_apps(terms, t->args[0], t->args+1, t->arity-1, t->type);
+   }
+   else
+   {
+      return t;
+   }
+}
+
+/*-----------------------------------------------------------------------
+//
 // Function: close_let_def()
 //
 //   For each defined symbol f(bound vars) = s, finds what are free variables
@@ -226,7 +282,14 @@ TFormula_p lift_lets(TB_p terms, TFormula_p t, PStack_p fresh_defs)
 
       if(changed)
       {
+         if(TermIsPhonyApp(new) && !TermIsPhonyAppTarget(new->args[0]))
+         {
+            Term_p flat = flatten_apps(terms, new->args[0], new->args+1, new->arity-1, new->type);
+            TermTopFree(new);
+            new = flat;
+         }
          new = TBTermTopInsert(terms, new);
+
       }
       else
       {
@@ -797,7 +860,8 @@ TFormula_p do_ite_unroll(TFormula_p form, TB_p terms)
                             TBTermTopInsert(terms, true_part),
                             TBTermTopInsert(terms, false_part));
 
-      form = do_ite_unroll(unrolled, terms);
+      form = do_ite_unroll(TermMap(terms, unrolled, flatten_apps_driver),
+                           terms);
    }
    else if(TFormulaIsLiteral(terms->sig, form))
    {
@@ -830,10 +894,10 @@ TFormula_p do_ite_unroll(TFormula_p form, TB_p terms)
 
          TFormula_p if_true_impl =
             TFormulaFCodeAlloc(terms, terms->sig->or_code,
-                               neg_cond, repl_t);
+                               neg_cond, TermMap(terms, repl_t, flatten_apps_driver));
          TFormula_p if_false_impl =
             TFormulaFCodeAlloc(terms, terms->sig->or_code,
-                               cond, repl_f);
+                               cond, TermMap(terms, repl_f, flatten_apps_driver));
 
          // the whole formula
          form = TFormulaFCodeAlloc(terms, terms->sig->and_code,
@@ -1281,7 +1345,7 @@ long FormulaSetSimplify(FormulaSet_p set, TB_p terms)
          if(TBNonVarTermNodes(terms)>gc_threshold)
          {
             assert(terms == handle->terms);
-            GCCollect(terms->gc);
+            TBGCCollect(terms);
             old_nodes = TBNonVarTermNodes(terms);
             gc_threshold = old_nodes*TFORMULA_GC_LIMIT;
          }
@@ -1291,7 +1355,7 @@ long FormulaSetSimplify(FormulaSet_p set, TB_p terms)
    // printf("All simplified\n");
    if(TBNonVarTermNodes(terms)!=old_nodes)
    {
-      GCCollect(terms->gc);
+      TBGCCollect(terms);
    }
    // printf("Garbage collected\n");
    return res;
@@ -1313,7 +1377,7 @@ long FormulaSetSimplify(FormulaSet_p set, TB_p terms)
 
 long FormulaSetCNF(FormulaSet_p set, FormulaSet_p archive,
                    ClauseSet_p clauseset, TB_p terms,
-                   VarBank_p fresh_vars, GCAdmin_p gc)
+                   VarBank_p fresh_vars)
 {
    WFormula_p form, handle;
    long res = 0;
@@ -1340,14 +1404,14 @@ long FormulaSetCNF(FormulaSet_p set, FormulaSet_p archive,
          (TBNonVarTermNodes(terms)>gc_threshold))
       {
          assert(terms == handle->terms);
-         GCCollect(gc);
+         TBGCCollect(terms);
          old_nodes = TBNonVarTermNodes(terms);
          gc_threshold = old_nodes*TFORMULA_GC_LIMIT;
       }
    }
    if(TBNonVarTermNodes(terms)!=old_nodes)
    {
-      GCCollect(gc);
+      TBGCCollect(terms);
    }
    return res;
 }
@@ -1368,25 +1432,32 @@ long FormulaSetCNF(FormulaSet_p set, FormulaSet_p archive,
 
 long FormulaSetCNF2(FormulaSet_p set, FormulaSet_p archive,
                     ClauseSet_p clauseset, TB_p terms,
-                    VarBank_p fresh_vars, GCAdmin_p gc, long miniscope_limit)
+                    VarBank_p fresh_vars
+                    , long miniscope_limit)
 {
    WFormula_p form, handle;
    long res = 0;
    long old_nodes = TBNonVarTermNodes(terms);
    long gc_threshold = old_nodes*TFORMULA_GC_LIMIT;
 
+   //printf("# FormulaSetCNF2()...\n");
    TFormulaSetLiftItes(set, archive, terms);
+   //printf("# Ite done\n");
    TFormulaSetLiftLets(set, archive, terms);
+   //printf("# Let done\n");
    TFormulaSetUnfoldLogSymbols(set, archive, terms);
+   //printf("# LogSymbols unfolded \n");
    TFormulaSetLambdaNormalize(set, archive, terms);
+   //printf("# Lambdas normalized\n");
    TFormulaSetLiftLambdas(set, archive, terms);
+   //printf("# Lambdas lifted\n");
    TFormulaSetUnrollFOOL(set, archive, terms);
-   // printf("# Simplify\n");
+   //printf("# Fool unrolled\n");
    FormulaSetSimplify(set, terms);
 
-   // printf("# Introducing definitions\n");
+   //printf("# Introducing definitions\n");
    TFormulaSetIntroduceDefs(set, archive, terms);
-   // printf("# Definitions introduced\n");
+   //printf("# Definitions introduced\n");
 
    while(!FormulaSetEmpty(set))
    {
@@ -1404,14 +1475,14 @@ long FormulaSetCNF2(FormulaSet_p set, FormulaSet_p archive,
          (TBNonVarTermNodes(terms)>gc_threshold))
       {
          assert(terms == handle->terms);
-         GCCollect(gc);
+         TBGCCollect(terms);
          old_nodes = TBNonVarTermNodes(terms);
          gc_threshold = old_nodes*TFORMULA_GC_LIMIT;
       }
    }
    if(TBNonVarTermNodes(terms)!=old_nodes)
    {
-      GCCollect(gc);
+      TBGCCollect(terms);
    }
    return res;
 }
@@ -1511,8 +1582,10 @@ long FormulaAndClauseSetParse(Scanner_p in, FormulaSet_p fset,
             }
             else
             {
+               // printf("Parsing begins\n");
                if(TestInpId(in, "input_formula|fof|tff|thf|tcf"))
                {
+                  // printf("It's a formula\n");
                   form = WFormulaParse(in, terms);
                   // fprintf(stdout, "Parsed: ");
                   // WFormulaPrint(stdout, form, true);

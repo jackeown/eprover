@@ -262,11 +262,13 @@ void SigInsertInternalCodes(Sig_p sig)
    f_code =
 #endif
    SigInsertId(sig, "$ite", 3, true);
+   // SigSetPolymorphic(sig, SIG_ITE_CODE, true);
    assert(f_code == SIG_ITE_CODE); //for future code changes
 #ifndef NDEBUG
    f_code =
 #endif
    SigInsertId(sig, "$let", 3, true);
+   // SigSetPolymorphic(sig, SIG_LET_CODE, true);
    assert(f_code == SIG_LET_CODE); //for future code changes
 
    Type_p* args = TypeArgArrayAlloc(2);
@@ -620,19 +622,40 @@ void SigSetAllSpecial(Sig_p sig, bool value)
 //
 /----------------------------------------------------------------------*/
 
+#define MULTI_ARITY_HACK
+
 FunCode SigInsertId(Sig_p sig, const char* name, int arity, bool special_id)
 {
    long      pos;
    StrTree_p new, test;
+   DStr_p    fix_name = NULL;
 
    pos = SigFindFCode(sig, name);
 
    if(pos) /* name is already known */
    {
-      if(sig->f_info[pos].arity != arity)
+      if(sig->f_info[pos].arity != arity && problemType == PROBLEM_FO)
       {
-         printf("Problem: %s %d != %d\n", name, arity, sig->f_info[pos].arity);
+         //printf("Problem: %s %d != %d\n", name, arity, sig->f_info[pos].arity);
+#ifdef MULTI_ARITY_HACK
+         fix_name = DStrAlloc();
+         DStrAppendStr(fix_name, name);
+         DStrAppendStr(fix_name, "_ARITYFIX");
+         DStrAppendInt(fix_name, arity);
+         DStrAppendStr(fix_name, " ");  /* Trailing space should ensure that it
+                               * cannot come from the real parser */
+         name = DStrView(fix_name);
+         pos = SigFindFCode(sig, name);
+#else
          return 0; /* ...but incompatible */
+#endif
+      }
+   }
+   if(pos)
+   {
+      if(fix_name)
+      {
+         DStrFree(fix_name);
       }
       if(special_id)
       {
@@ -666,8 +689,72 @@ FunCode SigInsertId(Sig_p sig, const char* name, int arity, bool special_id)
    SigSetSpecial(sig,sig->f_count,special_id);
    sig->alpha_ranks_valid = false;
 
+   if(fix_name)
+   {
+      DStrFree(fix_name);
+   }
    return sig->f_count;
 }
+
+
+/*-----------------------------------------------------------------------
+//
+// Function: SigPopId()
+//
+//   Remove the last symbol from the signature. This should only be
+//   done when no structures use it - otherwise the behaviour is
+//   undefined. This also ignores the Let-Id-Stack. The function
+//   returns the old sig->f_count (equivalent to the removed
+//   identifier), or 0 if the signature is empty.
+//
+// Global Variables: -
+//
+// Side Effects    : Memory operations
+//
+/----------------------------------------------------------------------*/
+
+FunCode SigPopId(Sig_p sig)
+{
+   FunCode res = 0;
+
+   if(sig->f_count)
+   {
+      res = sig->f_count;
+      StrTreeDeleteEntry(&(sig->f_index), sig->f_info[sig->f_count].name);
+      // Identifier is freed (unexpectedly?) in StrTreeDeleteEntry()
+      //FREE(sig->f_info[sig->f_count].name);
+      sig->f_count--;
+   }
+   return res;
+}
+
+
+/*-----------------------------------------------------------------------
+//
+// Function: SigBacktrack()
+//
+//    Remove all symbols with f_codes > f_count from the signature. See
+//    SigPopId() for caveats. Returns the number of symbols popped.
+//
+// Global Variables: -
+//
+// Side Effects    : -
+//
+/----------------------------------------------------------------------*/
+
+long SigBacktrack(Sig_p sig, FunCode f_count)
+{
+   long res = 0;
+
+   while(sig->f_count > f_count)
+   {
+      res++;
+      SigPopId(sig);
+   }
+   printf("Signature backtracked to %ld\n", f_count);
+   return res;
+}
+
 
 /*-----------------------------------------------------------------------
 //
@@ -1483,8 +1570,11 @@ void SigDeclareType(Sig_p sig, FunCode f, Type_p type)
 
 void SigDeclareFinalType(Sig_p sig, FunCode f_code, Type_p type)
 {
-   SigDeclareType(sig, f_code, type);
-   SigFixType(sig, f_code);
+   if(!SigIsPolymorphic(sig, f_code))
+   {
+      SigDeclareType(sig, f_code, type);
+      SigFixType(sig, f_code);
+   }
 }
 
 
@@ -1527,7 +1617,6 @@ void SigDeclareIsFunction(Sig_p sig, FunCode f_code)
    }
 }
 
-
 /*-----------------------------------------------------------------------
 //
 // Function: SigDeclareIsPredicate()
@@ -1562,7 +1651,6 @@ void SigDeclareIsPredicate(Sig_p sig, FunCode f_code)
       SigFixType(sig, f_code);
    }
 }
-
 
 /*-----------------------------------------------------------------------
 //
@@ -1603,7 +1691,6 @@ void SigPrintTypes(FILE* out, Sig_p sig)
    }
 }
 
-
 /*-----------------------------------------------------------------------
 //
 // Function: SigPrintTypeDeclsTSTP()
@@ -1626,7 +1713,7 @@ void SigPrintTypeDeclsTSTP(FILE* out, Sig_p sig)
    for(i=sig->internal_symbols+1; i <= sig->f_count; i++)
    {
       fun = &sig->f_info[i];
-      if (fun->type)
+      if (fun->type && !TypeIsUntyped(fun->type))
       {
          fprintf(out, "%s(decl_%ld, type, %s: ", tag, i, fun->name);
          TypePrintTSTP(out, sig->type_bank, fun->type);
@@ -1634,9 +1721,6 @@ void SigPrintTypeDeclsTSTP(FILE* out, Sig_p sig)
       }
    }
 }
-
-
-
 
 /*-----------------------------------------------------------------------
 //
@@ -1944,7 +2028,7 @@ void SigEnterLetScope(Sig_p sig, PStack_p type_decls)
 //
 /----------------------------------------------------------------------*/
 
-void  SigExitLetScope(Sig_p sig)
+void SigExitLetScope(Sig_p sig)
 {
    PStack_p scope = PStackPopP(sig->let_scopes);
 
@@ -1964,7 +2048,6 @@ void  SigExitLetScope(Sig_p sig)
       }
 
    }
-
    PStackFree(scope);
 }
 
