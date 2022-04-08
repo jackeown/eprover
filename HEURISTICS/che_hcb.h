@@ -58,6 +58,7 @@ typedef enum
    NoLits
 }ExtInferenceType;
 
+#define EIT2STR(x) (((x) == AllLits) ? ("all") : (((x) == MaxLits) ? "max" : "off"))
 #define NO_EXT_SUP (-1)
 
 
@@ -74,6 +75,9 @@ typedef struct heuristic_parms_cell
    bool                no_preproc;
    long                eqdef_maxclauses;
    long                eqdef_incrlimit;
+   bool                add_goal_defs_pos;
+   bool                add_goal_defs_neg; /* Twee-style goal rewriting */
+   bool                add_goal_defs_subterms;
 
 /* Clause selection elements */
    char                *heuristic_name;
@@ -107,6 +111,8 @@ typedef struct heuristic_parms_cell
    bool                forward_context_sr;
    bool                forward_context_sr_aggressive;
    bool                backward_context_sr;
+
+   bool                forward_subsumption_aggressive;
 
    RewriteLevel        forward_demod;
    bool                prefer_general;
@@ -211,7 +217,6 @@ typedef struct hcb_cell
 #define DEFAULT_PM_INTO_INDEX_NAME "FP7"
 
 typedef Clause_p (*ClauseSelectFun)(HCB_p hcb, ClauseSet_p set);
-
 
 /*---------------------------------------------------------------------*/
 /*                Exported Functions and Variables                     */
