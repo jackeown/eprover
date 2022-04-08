@@ -1468,6 +1468,7 @@ void initRL(){
 
 
 void sendRLState(RLProofStateCell state){
+   printf("Sending RL State...\n");
    sync_num++;
 
    write(StatePipe, &(sync_num), sizeof(int));
@@ -1490,6 +1491,7 @@ void sendRLState(RLProofStateCell state){
 
 
 int recvRLAction(){
+   printf("Receiving RL Action...\n");
    char buff[200];
 
    read(ActionPipe, buff, sizeof(int));
@@ -1507,6 +1509,7 @@ int recvRLAction(){
 
 
 void sendRLReward(float reward){
+   printf("Sending RL Reward\n");
    write(RewardPipe, &(sync_num), sizeof(int));
    write(RewardPipe, &reward, sizeof(float));
 
