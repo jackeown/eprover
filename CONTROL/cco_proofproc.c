@@ -1485,10 +1485,10 @@ void initRL(){
    RewardPipe = open(reward_pipe_path, O_WRONLY);
    sync_num = -1; // -1 because it is incremented in each call to sendRLState()
 
-   for(int i=0; i<NUM_CEFs; i++){
-      rlstate.queuePickCounts[i] = 0;
-      rlstate.queuePickWeightSum[i] = 0;
-   }
+   // for(int i=0; i<NUM_CEFs; i++){
+   //    rlstate.queuePickCounts[i] = 0;
+   //    rlstate.queuePickWeightSum[i] = 0;
+   // }
 }
 
 
@@ -1519,15 +1519,21 @@ int recvRLAction(){
    printf("Receiving RL Action...\n");
    char buff[200];
 
+   // printf("----Reading sync_num_remote\n");
    read(ActionPipe, buff, sizeof(int));
    int sync_num_remote = *((int*)buff);
 
+   // printf("----Reading actual action\n");
    read(ActionPipe, buff, sizeof(int));
    int action = *((int*)buff);
    
+   // printf("----assertion\n");
    assert(sync_num_remote == sync_num);
 
-   rlstate.queuePickCounts[action]++;
+   // printf("----queuePickCounts[action]++\n");
+   // rlstate.queuePickCounts[action]++;
+
+   // printf("----done\n");
 
    return action;
 }
@@ -1600,6 +1606,8 @@ Clause_p ProcessClause(ProofState_p state, ProofControl_p control,
    // 2.) Receive "action" from agent 
    //     (to become control->hcb->current_eval to tell which queue to select from)
    size_t action = recvRLAction();
+
+   // printf("Setting action in control->hcb->current_eval\n");
    control->hcb->current_eval = action;
 
    // 3.) Send "reward" to agent 
@@ -1607,10 +1615,13 @@ Clause_p ProcessClause(ProofState_p state, ProofControl_p control,
    //     (placed before every return statement in this function.)
    ///////////////////////////////////////////////////////////////////////
 
+   // printf("control->hcb->hcb_select()\n");
    clause = control->hcb->hcb_select(control->hcb,
                                      state->unprocessed);
+   
+   // printf("only thing left is to send the reward I believe...\n");
 
-   rlstate.queuePickWeightSum[action] += ClauseWeight(clause, 1,1,1,1,1,1, false);
+   // rlstate.queuePickWeightSum[action] += ClauseWeight(clause, 1,1,1,1,1,1, false);
 
    if(!clause)
    {
