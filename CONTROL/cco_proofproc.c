@@ -1529,6 +1529,7 @@ int recvRLAction(){
    
    // printf("----assertion\n");
    assert(sync_num_remote == sync_num);
+   assert(action >= 0 && action < 75);
 
    // printf("----queuePickCounts[action]++\n");
    // rlstate.queuePickCounts[action]++;
@@ -1545,7 +1546,7 @@ void sendRLReward(float reward){
    write(RewardPipe, &reward, sizeof(float));
 
    if (reward == 1.0){
-      printf("RL thinks proof is found?!\n");
+      printf("RL thinks proof is found!\n");
    }
 }
 
