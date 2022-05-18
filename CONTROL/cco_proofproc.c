@@ -870,6 +870,12 @@ typedef struct clause_with_index {
    size_t idx;
 } IdxClause;
 
+typedef struct clause_with_eval {
+   Clause_p clause;
+   size_t idx;
+   double eval;
+} EvalIdxClause;
+
 
 size_t WHICH_EVAL = 0;
 
@@ -877,19 +883,24 @@ float IAS_filter_val(Clause_p c){
    return c->evaluations->evals[WHICH_EVAL].heuristic;
 }
 
-int comparator(const void* c1_, const void* c2_){
+int simpleClauseComparator(const void* c1_, const void* c2_){
    Clause_p c1 = ((IdxClause*)c1_)->clause;
    Clause_p c2 = ((IdxClause*)c2_)->clause;
 
    float v1 = IAS_filter_val(c1);
    float v2 = IAS_filter_val(c2);
 
-   if (v1 < v2)
-      return -1;
-   else if (v1 > v2)
-      return 1;
-   else
+   if (v1 == v2)
       return 0;
+   return (v1 < v2) ? -1 : 1;
+}
+
+int evalClauseComparator(const void* c1_, const void* c2_){
+   double eval1 = ((EvalIdxClause*)c1_)->eval;
+   double eval2 = ((EvalIdxClause*)c2_)->eval;
+   if (eval1 == eval2)
+      return 0;
+   return (eval1 < eval2) ? -1 : 1;
 }
 
 IdxClause* sort(ClauseSet_p clauses){
@@ -902,14 +913,45 @@ IdxClause* sort(ClauseSet_p clauses){
       sorted[i].idx = i;
    }
 
-   qsort(sorted, clauses->members, sizeof(IdxClause), comparator);
+   qsort(sorted, clauses->members, sizeof(IdxClause), simpleClauseComparator);
    return sorted;
 }
+
+
+double* getRankingSums(ClauseSet_p clauses){
+   int num_evals = clauses->anchor->succ->evaluations->eval_no;
+   long num_clauses = clauses->members;
+   
+   // 0.) Set initial rankings to zero.
+   double* rankings = malloc(sizeof(double) * num_clauses);
+   for(int c=0; c<num_clauses; c++){
+      rankings[c] = 0.0;
+   }
+
+   // 1.) sort clauses by each CEF.
+   IdxClause** sortedz = malloc(sizeof(IdxClause*) * num_evals);
+   for(int eval=0; eval<num_evals; eval++){
+      WHICH_EVAL = eval; // global trickery!
+      sortedz[eval] = sort(clauses);
+   }
+
+   // 2.) Find each clause's (sum of) positions within each sorted list.
+   for(int eval=0; eval<num_evals; eval++){
+      IdxClause* sorted = sortedz[eval];
+      for(int c=0; c<clauses->members; c++){
+         rankings[sorted[c].idx] += (double) c;
+      }
+      free(sorted);
+   }
+
+   free(sortedz);
+   return rankings;
+}
+
 
 int max(int a, int b){
    return (a > b) ? a : b;
 }
-
 
 
 
@@ -923,10 +965,23 @@ ClauseSet_p IAS_LinearRegressionCut(ClauseSet_p IAS_inferences){
    ClauseSet_p filtered = ClauseSetAlloc();
 
    // 1.) Sort inference evaluations into "evals" list.
-   IdxClause* sorted = sort(IAS_inferences);
+   // IdxClause* sorted = sort(IAS_inferences);
+   double* rankingSums = getRankingSums(IAS_inferences);
+
+   EvalIdxClause* sorted = malloc(sizeof(EvalIdxClause) * n);
+   Clause_p handle = IAS_inferences->anchor->succ;
+   for(int i=0; i<n; i++){
+      sorted[i].clause = handle;
+      sorted[i].eval = rankingSums[i];
+      sorted[i].idx = i;
+      handle = handle->succ;
+   }
+   qsort(sorted, n, sizeof(EvalIdxClause), evalClauseComparator);
+   free(rankingSums);
+
    float* evals = SizeMalloc(n * sizeof(float));
    for(size_t i=0; i<n; i++){
-      evals[i] = IAS_filter_val(sorted[i].clause);
+      evals[i] = sorted[i].eval;
    }
 
    // Don't split a list with 1 element!
@@ -983,17 +1038,6 @@ ClauseSet_p IAS_LinearRegressionCut(ClauseSet_p IAS_inferences){
 
    return filtered;
 }
-
-
-ClauseSet_p IAS_PercentileCut(ClauseSet_p IAS_inferences, float percentile) {
-
-}
-
-
-
-
-
-
 
 
 
@@ -1965,44 +2009,46 @@ Clause_p Saturate(ProofState_p state, ProofControl_p control, long
       // "linear regression cut" on clause eval func evals.                //
       // and appends them to the unprocessed set if it is empty.
       bool not_in_presaturation_interreduction = (control->heuristic_parms.selection_strategy != SelectNoGeneration);
-      if(ClauseSetEmpty(state->unprocessed) && not_in_presaturation_interreduction){
-
-         if(ClauseSetEmpty(state->IAS_inferences)){
-            break;
-         }
-
+      bool IAS_inferences_empty = ClauseSetEmpty(state->IAS_inferences);
+      if(ClauseSetEmpty(state->unprocessed) && not_in_presaturation_interreduction && !IAS_inferences_empty){
 
          // Write out heuristic info to files for plotting.
          // A CSV with 1 row per clause.
          // Each column is a different CEF.
-         static int i=0;
-         outputHeuristicInfo(state->IAS_inferences, i);
+         // static int i=0;
+         // outputHeuristicInfo(state->IAS_inferences, i);
 
 
          // Filter IAS_inferences
          fprintf(stdout, "Begin Filtering IAS_inferences...%ld\n", state->IAS_inferences->members);
-         fflush(stdout);
          ClauseSet_p filtered = IAS_LinearRegressionCut(state->IAS_inferences);
          // ClauseSet_p filtered = state->IAS_inferences;
          fprintf(stdout, "Done Filtering IAS_inferences...%ld\n", filtered->members);
-         fflush(stdout);
+         fprintf(stdout, "inferences left in IAS_inferences...%ld\n", state->IAS_inferences->members);
 
 
-         char filename[200];
-         snprintf(filename, 200, "heuristic_info_%d.split", i);
-         FILE* info = fopen(filename, "w");
-         fprintf(info, "%d", filtered->members);
-         fclose(info);
-         i += 1;
+         // char filename[200];
+         // snprintf(filename, 200, "heuristic_info_%d.split", i);
+         // FILE* info = fopen(filename, "w");
+         // fprintf(info, "%d", filtered->members);
+         // fclose(info);
+         // i += 1;
 
 
          // Dump IAS_inferences ***and processed*** into unprocessed.
          ClauseSetInsertSet(state->unprocessed, filtered);
 
          // Clear out IAS_inferences.
-         ClauseSetCellFree(state->IAS_inferences);
-         state->IAS_inferences = ClauseSetAlloc();
-         
+         // ClauseSetCellFree(state->IAS_inferences);
+         // state->IAS_inferences = ClauseSetAlloc();
+
+         // Clause_p handle = state->IAS_inferences->anchor;
+         // int n = state->IAS_inferences->members;
+         // for(size_t i=0; i<n; i++){
+         //    Clause_p prev = handle;
+         //    handle = handle->succ;
+         //    ClauseSetDeleteEntry(prev);
+         // }
       }
       //                                                                   //
       //                                                                   //
