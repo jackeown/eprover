@@ -984,8 +984,8 @@ ClauseSet_p IAS_LinearRegressionCut(ClauseSet_p IAS_inferences){
       evals[i] = sorted[i].eval;
    }
 
-   // Don't split a list with 1 element!
-   if (n > 1){
+   // If there are only 3 clauses, keep them all
+   if (n > 3){
       // 1.5) Get CDF
       size_t cdf_resolution = 200;
       float min_eval = evals[0];
@@ -1026,6 +1026,10 @@ ClauseSet_p IAS_LinearRegressionCut(ClauseSet_p IAS_inferences){
       }
 
       free(cdf);
+   }
+
+   if (best_split >= n - 2) {
+      best_split = n;
    }
 
    // 3.) Filter out and return the clauses corresponding to the left half after the split.
