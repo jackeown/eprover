@@ -1005,7 +1005,7 @@ ClauseSet_p IAS_LinearRegressionCut(ClauseSet_p IAS_inferences){
 
       best_split = 0;
       float biggest_slope_diff = INT_MIN;
-      for(size_t split_idx=cdf_resolution / 10; split_idx<(0.9 * cdf_resolution); split_idx++){
+      for(size_t split_idx=1; split_idx<cdf_resolution; split_idx++){
       // for(size_t split_idx=10; split_idx<(cdf_resolution - 10); split_idx++){
          IAS_LinRegResult left_result = IAS_LinearRegression(cdf, 0, split_idx);
          IAS_LinRegResult right_result = IAS_LinearRegression(cdf, split_idx, cdf_resolution);
