@@ -918,7 +918,7 @@ IdxClause* sort(ClauseSet_p clauses){
 }
 
 
-double* getRankingSums(ClauseSet_p clauses){
+double* getRankingSums(ClauseSet_p clauses, long processed_count){
    int num_evals = clauses->anchor->succ->evaluations->eval_no;
    long num_clauses = clauses->members;
    
@@ -944,6 +944,16 @@ double* getRankingSums(ClauseSet_p clauses){
       free(sorted);
    }
 
+   // 3.) TODO: Multiply rankingSum by n/m where n is the timestep clause was generated and m is "now".
+   // create_date / "count"
+
+   Clause_p handle = clauses->anchor;
+   for(int i=0; i<num_clauses; i++){
+      handle = handle->succ;
+      double time_ratio = ((double) handle->create_date) / ((double) processed_count);
+      rankings[i] *= time_ratio;
+   }
+
    free(sortedz);
    return rankings;
 }
@@ -956,7 +966,7 @@ int max(int a, int b){
 
 
 // Currently inverse linear regression cut on CDF data.
-ClauseSet_p IAS_LinearRegressionCut(ClauseSet_p IAS_inferences){
+ClauseSet_p IAS_LinearRegressionCut(ClauseSet_p IAS_inferences, long processed_count){
 
    long n = IAS_inferences->members;
    size_t best_split = n;
@@ -966,10 +976,11 @@ ClauseSet_p IAS_LinearRegressionCut(ClauseSet_p IAS_inferences){
 
    // 1.) Sort inference evaluations into "evals" list.
    // IdxClause* sorted = sort(IAS_inferences);
-   double* rankingSums = getRankingSums(IAS_inferences);
+   double* rankingSums = getRankingSums(IAS_inferences, processed_count);
 
    EvalIdxClause* sorted = malloc(sizeof(EvalIdxClause) * n);
    Clause_p handle = IAS_inferences->anchor->succ;
+
    for(int i=0; i<n; i++){
       sorted[i].clause = handle;
       sorted[i].eval = rankingSums[i];
@@ -2019,13 +2030,13 @@ Clause_p Saturate(ProofState_p state, ProofControl_p control, long
          // Write out heuristic info to files for plotting.
          // A CSV with 1 row per clause.
          // Each column is a different CEF.
-         // static int i=0;
-         // outputHeuristicInfo(state->IAS_inferences, i);
+         static int i=0;
+         outputHeuristicInfo(state->IAS_inferences, i);
 
 
          // Filter IAS_inferences
          fprintf(stdout, "Begin Filtering IAS_inferences...%ld\n", state->IAS_inferences->members);
-         ClauseSet_p filtered = IAS_LinearRegressionCut(state->IAS_inferences);
+         ClauseSet_p filtered = IAS_LinearRegressionCut(state->IAS_inferences, count);
          // ClauseSet_p filtered = state->IAS_inferences;
          fprintf(stdout, "Done Filtering IAS_inferences...%ld\n", filtered->members);
          fprintf(stdout, "inferences left in IAS_inferences...%ld\n", state->IAS_inferences->members);
@@ -2036,7 +2047,7 @@ Clause_p Saturate(ProofState_p state, ProofControl_p control, long
          // FILE* info = fopen(filename, "w");
          // fprintf(info, "%d", filtered->members);
          // fclose(info);
-         // i += 1;
+         i += 1;
 
 
          // Dump IAS_inferences ***and processed*** into unprocessed.
