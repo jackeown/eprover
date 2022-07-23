@@ -19,7 +19,9 @@ PROJECT = $(EPROVER_BIN) e_ltb_runner e_stratpar e_deduction_server e_axfilter \
 	  classify_problem epatternize e_client e_server\
           direct_examples epclanalyse epclextract checkproof eground\
           enormalizer edpll epcllemma \
-          ekb_create ekb_insert ekb_ginsert ekb_delete $(EHOH)
+          ekb_create ekb_insert ekb_ginsert ekb_delete $(EHOH)\
+          cef_inspector
+
 LIB     = $(PROJECT)
 all: $(LIB)
 
@@ -42,6 +44,16 @@ EPROVER = eprover.o ../lib/CONTROL.a ../lib/HEURISTICS.a\
             ../lib/LEARN.a\
             ../lib/CLAUSES.a ../lib/ORDERINGS.a ../lib/TERMS.a\
             ../lib/INOUT.a ../lib/BASICS.a  ../lib/CONTRIB.a
+
+
+CEF_INSPECTOR = cef_inspector.o ../lib/CONTROL.a ../lib/HEURISTICS.a\
+            ../lib/LEARN.a\
+            ../lib/CLAUSES.a ../lib/ORDERINGS.a ../lib/TERMS.a\
+            ../lib/INOUT.a ../lib/BASICS.a  ../lib/CONTRIB.a
+
+cef_inspector: $(CEF_INSPECTOR)
+	$(LD) -o cef_inspector $(CEF_INSPECTOR) $(LIBS)
+
 
 $(EPROVER_BIN): $(EPROVER)
 	$(LD) -o $(EPROVER_BIN) $(EPROVER) $(LIBS)

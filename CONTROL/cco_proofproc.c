@@ -765,9 +765,6 @@ static Clause_p insert_new_clauses(ProofState_p state, ProofControl_p control)
 
 
 
-// TODO: How do I get heuristic names?
-
-
 void outputHeuristicNames(ClauseSet_p clauses, FILE* csv){
    Clause_p c = clauses->anchor->succ;
    // fprintf(csv, "header\n");
