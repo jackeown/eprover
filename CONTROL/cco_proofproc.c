@@ -941,8 +941,6 @@ double* getRankingSums(ClauseSet_p clauses, long processed_count){
       free(sorted);
    }
 
-   // 3.) TODO: Multiply rankingSum by n/m where n is the timestep clause was generated and m is "now".
-   // create_date / "count"
 
    Clause_p handle = clauses->anchor;
    for(int i=0; i<num_clauses; i++){
@@ -992,6 +990,11 @@ ClauseSet_p IAS_LinearRegressionCut(ClauseSet_p IAS_inferences, long processed_c
       evals[i] = sorted[i].eval;
    }
 
+
+
+
+
+
    // If there are only 3 clauses, keep them all
    if (n > 3){
       // 1.5) Get CDF
@@ -1036,6 +1039,11 @@ ClauseSet_p IAS_LinearRegressionCut(ClauseSet_p IAS_inferences, long processed_c
       free(cdf);
    }
 
+
+
+
+
+   // If you're only going to throw away 2 or less, just keep them all?
    if (best_split >= n - 2) {
       best_split = n;
    }
