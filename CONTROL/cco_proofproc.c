@@ -1736,6 +1736,12 @@ Clause_p Saturate(ProofState_p state, ProofControl_p control, long
       sat_check_ttinsert_limit = control->heuristic_parms.sat_check_ttinsert_limit;
 
 
+   // ADDED BY JACK MCKEOWN TO TEST IF ALL ONES IS SIGNIFICANTLY DIFFERENT FROM --AUTO
+   for(int i=0; i<control->hcb->wfcb_no; i++){
+      control->hcb->select_switch->array[i].i_val = 1;
+   }
+
+
    while(!TimeIsUp &&
          !ClauseSetEmpty(state->unprocessed) &&
          step_limit   > count &&
