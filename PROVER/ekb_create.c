@@ -45,6 +45,8 @@ typedef enum
    OPT_SELECT_EVAL
 }OptionCodes;
 
+ProblemType problemType  = PROBLEM_NOT_INIT;
+
 
 
 /*---------------------------------------------------------------------*/
@@ -119,7 +121,7 @@ int main(int argc, char* argv[])
    if(state->argc > 1)
    {
       Error("Only one non-option argument (name of the knowledge base)"
-       " expexted", USAGE_ERROR);
+       " expected", USAGE_ERROR);
    }
    if(state->argc == 1)
    {

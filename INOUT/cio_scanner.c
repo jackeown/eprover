@@ -37,7 +37,7 @@ static TokenRepCell token_print_rep[] =
    {String,       "String enclosed in double quotes (\"\")"},
    {SQString,     "String enclosed in single quote ('')"},
    {PosInt,       "Integer (sequence of decimal digits) "
-    "convertable to an 'unsigned long'"},
+    "convertible to an 'unsigned long'"},
    /* May need LargePosInt here... */
    {OpenBracket,  "Opening bracket ('(')"},
    {CloseBracket, "Closing bracket (')')"},
@@ -845,6 +845,9 @@ Scanner_p CreateScanner(StreamType type, char *name, bool
    handle->include_key = NULL;
    handle->format = LOPFormat;
 
+   //printf("# CreateScanner(%s, %s, %d, %s, %d)\n", type, name,
+   //ignore_comments, default_dir, fail);
+
    if((type == StreamTypeFile && strcmp(name,"-")==0)||
       (type != StreamTypeFile))
    {
@@ -885,6 +888,7 @@ Scanner_p CreateScanner(StreamType type, char *name, bool
          FREE(tmp_name);
          stream = OpenStackedInput(&handle->source, type,
                                    DStrView(full_file_name), fail&&!TPTP_dir);
+         fflush(stdout);
          if(!stream&&TPTP_dir)
          {
             assert(TPTP_dir);
@@ -1093,7 +1097,7 @@ bool TestIdnum(Token_p akt, char* ids)
 //
 // Global Variables: -
 //
-// Side Effects    : Terminates programm
+// Side Effects    : Terminates program
 //
 /----------------------------------------------------------------------*/
 
@@ -1123,7 +1127,7 @@ void AktTokenError(Scanner_p in, char* msg, bool syserr)
 //
 // Global Variables: -
 //
-// Side Effects    : Terminates programm
+// Side Effects    : Terminates program
 //
 /----------------------------------------------------------------------*/
 
