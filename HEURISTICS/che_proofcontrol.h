@@ -76,6 +76,8 @@ void           ProofControlResetSATSolver(ProofControl_p ctrl);
 void           DoLiteralSelection(ProofControl_p control, Clause_p
               clause);
 
+int categorical_sampled_eval(ProofControl_p control);
+
 
 #endif
 

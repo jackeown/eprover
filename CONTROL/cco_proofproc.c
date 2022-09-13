@@ -1531,6 +1531,35 @@ void ProofStateInit(ProofState_p state, ProofControl_p control)
 }
 
 
+int categorical_sampled_eval(ProofControl_p control){
+   int n = control->hcb->wfcb_no;
+   float probs[n];
+
+   // Get total of queue sizes
+   float total = 0.0;
+   for (int i=0; i<n; i++){
+      total += control->hcb->select_switch->array[i].i_val;
+   }
+
+   // Find queue probabilities
+   for (int i=0; i<n; i++){
+      probs[n] = (float) control->hcb->select_switch->array[i].i_val / total;
+   }
+
+   // Perform actual sampling...
+   float r = (float) rand() / (float) RAND_MAX;
+   float t = 0.0;
+   for (int i=0; i<n; i++){
+      t += probs[n];
+      if (r < t){
+         return i;
+      }
+   }
+}
+
+
+
+
 /*-----------------------------------------------------------------------
 //
 // Function: ProcessClause()
@@ -1551,6 +1580,8 @@ Clause_p ProcessClause(ProofState_p state, ProofControl_p control,
    Clause_p         clause, resclause, tmp_copy, empty, arch_copy = NULL;
    FVPackedClause_p pclause;
    SysDate          clausedate;
+
+   control->hcb->current_eval = categorical_sampled_eval(control);
 
    clause = control->hcb->hcb_select(control->hcb,
                                      state->unprocessed);
