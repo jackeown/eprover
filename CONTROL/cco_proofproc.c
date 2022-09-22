@@ -1469,6 +1469,29 @@ int RewardPipe;
 RLProofStateCell rlstate;
 int sync_num;
 
+long long statePipeTimeSpent = 0;
+long long actionPipeTimeSpent = 0;
+long long rewardPipeTimeSpent = 0;
+
+long long statePrepTimeSpent = 0;
+
+
+long long timeInMicroSeconds() {
+    struct timeval tv;
+
+    gettimeofday(&tv,NULL);
+    return (((long long)tv.tv_sec)*1000000)+(tv.tv_usec);
+}
+
+long long timerStart(){
+   return timeInMicroSeconds();
+}
+
+void timerEnd(long long startTime, long long* destination){
+   *destination += (timeInMicroSeconds() - startTime);
+}
+
+
 
 void initRL(){
    printf("Initializing Reinforcement Learning...\n");
@@ -1479,20 +1502,16 @@ void initRL(){
 
    printf("State Pipe Path: %s\n", state_pipe_path);
 
-
    StatePipe = open(state_pipe_path, O_WRONLY);
    ActionPipe = open(action_pipe_path, O_RDONLY);
    RewardPipe = open(reward_pipe_path, O_WRONLY);
    sync_num = -1; // -1 because it is incremented in each call to sendRLState()
 
-   // for(int i=0; i<NUM_CEFs; i++){
-   //    rlstate.queuePickCounts[i] = 0;
-   //    rlstate.queuePickWeightSum[i] = 0;
-   // }
 }
 
 
 void sendRLState(RLProofStateCell state){
+   long long start = timerStart();
    printf("Sending RL State...\n");
    sync_num++;
 
@@ -1504,18 +1523,12 @@ void sendRLState(RLProofStateCell state){
    write(StatePipe, &(state.processedAvgWeight), sizeof(float));
    write(StatePipe, &(state.unprocessedAvgWeight), sizeof(float));
 
-   // for(int i=0; i<NUM_CEFs; i++){
-   //    write(StatePipe, state.queuePickCounts + i, sizeof(size_t));
-   // }
-
-   // for(int i=0; i<NUM_CEFs; i++){
-   //    write(StatePipe, state.queuePickWeightSum + i, sizeof(float));
-   // }
-
+   timerEnd(start, &statePipeTimeSpent);
 }
 
 
 int recvRLAction(){
+   long long start = timerStart();
    printf("Receiving RL Action...\n");
    char buff[200];
 
@@ -1536,11 +1549,16 @@ int recvRLAction(){
 
    // printf("----done\n");
 
+
+   // int action = rand() % 75;
+
+   timerEnd(start, &actionPipeTimeSpent);
    return action;
 }
 
 
 void sendRLReward(float reward){
+   long long start = timerStart();
    printf("Sending RL Reward\n");
    write(RewardPipe, &(sync_num), sizeof(int));
    write(RewardPipe, &reward, sizeof(float));
@@ -1548,6 +1566,7 @@ void sendRLReward(float reward){
    if (reward == 1.0){
       printf("RL thinks proof is found!\n");
    }
+   timerEnd(start, &rewardPipeTimeSpent);
 }
 
 
@@ -1575,9 +1594,14 @@ Clause_p ProcessClause(ProofState_p state, ProofControl_p control,
    SysDate          clausedate;
 
 
+   state->RLTimeSpent_statePipe = statePipeTimeSpent;
+   state->RLTimeSpent_actionPipe = actionPipeTimeSpent;
+   state->RLTimeSpent_rewardPipe = rewardPipeTimeSpent;
+   state->RLTimeSpent_prep = statePrepTimeSpent;
 
    //////// Jack McKeown's Reinforcement Learning Idea ///////////////////
    // 1.) Send RL proof "state" to agent
+   long long startTime = timerStart();
    rlstate.numProcessed = ClauseSetCardinality(state->processed_neg_units) \
                         + ClauseSetCardinality(state->processed_non_units) \
                         + ClauseSetCardinality(state->processed_pos_eqns) \
@@ -1599,8 +1623,8 @@ Clause_p ProcessClause(ProofState_p state, ProofControl_p control,
    else
       rlstate.unprocessedAvgWeight = -1.0;
 
-   // state->unprocessed
 
+   timerEnd(startTime, &statePrepTimeSpent);
 
    sendRLState(rlstate);
 

@@ -242,6 +242,11 @@ ProofState_p ProofStateAlloc(FunctionProperties free_symb_prop)
    handle->signature->distinct_props =
       handle->signature->distinct_props&(~free_symb_prop);
 
+   handle->RLTimeSpent_statePipe = 0;
+   handle->RLTimeSpent_actionPipe = 0;
+   handle->RLTimeSpent_rewardPipe = 0;
+   handle->RLTimeSpent_prep = 0;
+
 #ifdef NEVER_DEFINED
    printf("# XXXf_axioms            = %p\n", handle->f_axioms);
    printf("# XXXf_ax_archive        = %p\n", handle->f_ax_archive);
@@ -597,8 +602,21 @@ void ProofStateTrain(ProofState_p state, bool print_pos, bool print_neg)
 
 void ProofStateStatisticsPrint(FILE* out, ProofState_p state)
 {
-   fprintf(out, "# Initial clauses in saturation        : %ld\n",
-           state->axioms->members);
+   fprintf(out, "# Initial clauses in saturation        : %lf\n",
+           state->axioms->members / 1000000.0);
+
+   fprintf(out, "# RL Seconds spent sending states      : %lf\n",
+        state->RLTimeSpent_statePipe / 1000000.0);
+
+   fprintf(out, "# RL Seconds spent recieving actions   : %lf\n",
+        state->RLTimeSpent_actionPipe / 1000000.0);
+
+   fprintf(out, "# RL Seconds spent sending rewards     : %lf\n",
+        state->RLTimeSpent_rewardPipe / 1000000.0);
+
+   fprintf(out, "# RL Seconds spent constructing 'state': %lf\n",
+        state->RLTimeSpent_prep / 1000000.0);
+
    fprintf(out, "# Processed clauses                    : %ld\n",
            state->processed_count);
    fprintf(out, "# ...of these trivial                  : %ld\n",

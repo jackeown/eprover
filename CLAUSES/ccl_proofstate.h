@@ -119,6 +119,11 @@ typedef struct proofstatecell
       DerivationCompute() at the end of the proof search. */
    unsigned long gc_count;
    unsigned long gc_used_count;
+
+   long long RLTimeSpent_statePipe;
+   long long RLTimeSpent_actionPipe;
+   long long RLTimeSpent_rewardPipe;
+   long long RLTimeSpent_prep;
 }ProofStateCell, *ProofState_p;
 
 typedef enum
