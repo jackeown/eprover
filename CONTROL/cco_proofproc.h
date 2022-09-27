@@ -86,7 +86,7 @@ extern int sync_num; // number to keep E and RL stuff in sync.
 
 void initRL();
 void sendRLState(RLProofStateCell);
-int recvRLAction();
+int recvRLAction(ProofState_p);
 void sendRLReward(float);
 
 

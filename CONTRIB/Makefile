@@ -16,7 +16,13 @@ include ../Makefile.vars
 
 PICOSAT = picosat-965
 
-all: picosat
+all: picosat mcts
+	@if [ 1 ]; then\
+	   $(LN) $(PICOSAT)/libpicosat.a CONTRIB.a;\
+	   ar r CONTRIB.a mcts/mcts.o;\
+	fi;
+
+
 
 # Remove all automatically generated files
 
@@ -37,6 +43,10 @@ $(PICOSAT)/makefile: $(PICOSAT)/makefile.in
 
 picosat: $(PICOSAT)/makefile
 	cd $(PICOSAT); $(MAKE); $(MAKE)
-	@if [ ! -h CONTRIB.a ]; then\
-	   $(LN) $(PICOSAT)/libpicosat.a CONTRIB.a;\
-	fi;
+# @if [ ! -h CONTRIB.a ]; then\
+#    $(LN) $(PICOSAT)/libpicosat.a CONTRIB.a;\
+# fi;
+
+
+mcts: mcts/mcts.c mcts/mcts.h
+	cd mcts; $(MAKE);

@@ -20,6 +20,7 @@ Changes
     New
 
 -----------------------------------------------------------------------*/
+#include "mcts.h"
 
 #include "cco_proofproc.h"
 #include <picosat.h>
@@ -1461,7 +1462,8 @@ void ProofStateInit(ProofState_p state, ProofControl_p control)
 }
 
 
-
+MCTSNode_p MCTSRoot;
+MCTSNode_p MCTSChosen;
 
 int StatePipe;
 int ActionPipe;
@@ -1472,7 +1474,6 @@ int sync_num;
 long long statePipeTimeSpent = 0;
 long long actionPipeTimeSpent = 0;
 long long rewardPipeTimeSpent = 0;
-
 long long statePrepTimeSpent = 0;
 
 
@@ -1495,54 +1496,54 @@ void timerEnd(long long startTime, long long* destination){
 
 void initRL(){
    printf("Initializing Reinforcement Learning...\n");
+   MCTSRoot = makeRoot();
+   MCTSChosen = MCTSRoot;
 
-   char* state_pipe_path = (state_pipe_path = getenv("E_RL_STATEPIPE_PATH")) ? state_pipe_path : "/tmp/StatePipe1";
-   char* action_pipe_path = (action_pipe_path = getenv("E_RL_ACTIONPIPE_PATH")) ? action_pipe_path : "/tmp/ActionPipe1";
-   char* reward_pipe_path = (reward_pipe_path = getenv("E_RL_REWARDPIPE_PATH")) ? reward_pipe_path : "/tmp/RewardPipe1";
+   // char* state_pipe_path = (state_pipe_path = getenv("E_RL_STATEPIPE_PATH")) ? state_pipe_path : "/tmp/StatePipe1";
+   // char* action_pipe_path = (action_pipe_path = getenv("E_RL_ACTIONPIPE_PATH")) ? action_pipe_path : "/tmp/ActionPipe1";
+   // char* reward_pipe_path = (reward_pipe_path = getenv("E_RL_REWARDPIPE_PATH")) ? reward_pipe_path : "/tmp/RewardPipe1";
 
-   printf("State Pipe Path: %s\n", state_pipe_path);
+   // printf("State Pipe Path: %s\n", state_pipe_path);
 
-   StatePipe = open(state_pipe_path, O_WRONLY);
-   ActionPipe = open(action_pipe_path, O_RDONLY);
-   RewardPipe = open(reward_pipe_path, O_WRONLY);
-   sync_num = -1; // -1 because it is incremented in each call to sendRLState()
-
+   // StatePipe = open(state_pipe_path, O_WRONLY);
+   // ActionPipe = open(action_pipe_path, O_RDONLY);
+   // RewardPipe = open(reward_pipe_path, O_WRONLY);
+   // sync_num = -1; // -1 because it is incremented in each call to sendRLState()
 }
 
 
 void sendRLState(RLProofStateCell state){
    long long start = timerStart();
-   printf("Sending RL State...\n");
-   sync_num++;
+   // printf("Sending RL State...\n");
+   // sync_num++;
 
-   write(StatePipe, &(sync_num), sizeof(int));
+   // write(StatePipe, &(sync_num), sizeof(int));
 
-   write(StatePipe, &(state.numProcessed), sizeof(size_t));
-   write(StatePipe, &(state.numUnprocessed), sizeof(size_t));
+   // write(StatePipe, &(state.numProcessed), sizeof(size_t));
+   // write(StatePipe, &(state.numUnprocessed), sizeof(size_t));
 
-   write(StatePipe, &(state.processedAvgWeight), sizeof(float));
-   write(StatePipe, &(state.unprocessedAvgWeight), sizeof(float));
+   // write(StatePipe, &(state.processedAvgWeight), sizeof(float));
+   // write(StatePipe, &(state.unprocessedAvgWeight), sizeof(float));
 
    timerEnd(start, &statePipeTimeSpent);
 }
 
 
-int recvRLAction(){
+int recvRLAction(ProofState_p state){
    long long start = timerStart();
-   printf("Receiving RL Action...\n");
-   char buff[200];
+   // char buff[200];
 
-   // printf("----Reading sync_num_remote\n");
-   read(ActionPipe, buff, sizeof(int));
-   int sync_num_remote = *((int*)buff);
+   // // printf("----Reading sync_num_remote\n");
+   // read(ActionPipe, buff, sizeof(int));
+   // int sync_num_remote = *((int*)buff);
 
-   // printf("----Reading actual action\n");
-   read(ActionPipe, buff, sizeof(int));
-   int action = *((int*)buff);
+   // // printf("----Reading actual action\n");
+   // read(ActionPipe, buff, sizeof(int));
+   // int action = *((int*)buff);
    
-   // printf("----assertion\n");
-   assert(sync_num_remote == sync_num);
-   assert(action >= 0 && action < 75);
+   // // printf("----assertion\n");
+   // assert(sync_num_remote == sync_num);
+   // assert(action >= 0 && action < 75);
 
    // printf("----queuePickCounts[action]++\n");
    // rlstate.queuePickCounts[action]++;
@@ -1552,6 +1553,39 @@ int recvRLAction(){
 
    // int action = rand() % 75;
 
+   int action = MCTSSearch(MCTSChosen, 100);
+   if (MCTS_SIM){
+      OutputLevel = 0;
+
+      // What node am I simulating?...
+      MCTSNode_p node = Selection(MCTSChosen);
+
+      // Pick action according to state.
+      if (MCTS_SIM_TIME < node->state->len){
+         action = node->state->cef_choices[MCTS_SIM_TIME];
+      }
+
+      // If at the end of state, then simulate for a while.
+      else if (MCTS_SIM_TIME < MAX_STATE_LEN){
+         action = rand() % 75;
+      }
+
+      // If done simulating, write to pipe :)
+      else{
+         float simValue = -1.0 * state->unprocessed->members / 100.0;
+         write(MCTS_PIPE[1], &simValue, sizeof(float));
+         exit(0);
+      }
+
+      MCTS_SIM_TIME++;
+   }
+   else{
+      MCTSChosen = MCTSChosen->children[action];
+      MCTSStateShift(MCTSChosen);
+      // printf("Received MCTS Action: %d\n", action);
+      // printf("MCTS Action Score   : %f\n", MCTSChosen->totalReward / MCTSChosen->numVisits);
+   }
+
    timerEnd(start, &actionPipeTimeSpent);
    return action;
 }
@@ -1559,13 +1593,13 @@ int recvRLAction(){
 
 void sendRLReward(float reward){
    long long start = timerStart();
-   printf("Sending RL Reward\n");
-   write(RewardPipe, &(sync_num), sizeof(int));
-   write(RewardPipe, &reward, sizeof(float));
+   // printf("Sending RL Reward\n");
+   // write(RewardPipe, &(sync_num), sizeof(int));
+   // write(RewardPipe, &reward, sizeof(float));
 
-   if (reward == 1.0){
-      printf("RL thinks proof is found!\n");
-   }
+   // if (reward == 1.0){
+   //    printf("RL thinks proof is found!\n");
+   // }
    timerEnd(start, &rewardPipeTimeSpent);
 }
 
@@ -1602,26 +1636,26 @@ Clause_p ProcessClause(ProofState_p state, ProofControl_p control,
    //////// Jack McKeown's Reinforcement Learning Idea ///////////////////
    // 1.) Send RL proof "state" to agent
    long long startTime = timerStart();
-   rlstate.numProcessed = ClauseSetCardinality(state->processed_neg_units) \
-                        + ClauseSetCardinality(state->processed_non_units) \
-                        + ClauseSetCardinality(state->processed_pos_eqns) \
-                        + ClauseSetCardinality(state->processed_pos_rules);
+   // rlstate.numProcessed = ClauseSetCardinality(state->processed_neg_units) \
+   //                      + ClauseSetCardinality(state->processed_non_units) \
+   //                      + ClauseSetCardinality(state->processed_pos_eqns) \
+   //                      + ClauseSetCardinality(state->processed_pos_rules);
 
-   long long total = 0;
-   total += ClauseSetStandardWeight(state->processed_neg_units);
-   total += ClauseSetStandardWeight(state->processed_non_units);
-   total += ClauseSetStandardWeight(state->processed_pos_eqns);
-   total += ClauseSetStandardWeight(state->processed_pos_rules);
-   if (rlstate.numProcessed)
-      rlstate.processedAvgWeight = total / (float) rlstate.numProcessed;
-   else
-      rlstate.processedAvgWeight = -1.0;
+   // long long total = 0;
+   // total += ClauseSetStandardWeight(state->processed_neg_units);
+   // total += ClauseSetStandardWeight(state->processed_non_units);
+   // total += ClauseSetStandardWeight(state->processed_pos_eqns);
+   // total += ClauseSetStandardWeight(state->processed_pos_rules);
+   // if (rlstate.numProcessed)
+   //    rlstate.processedAvgWeight = total / (float) rlstate.numProcessed;
+   // else
+   //    rlstate.processedAvgWeight = -1.0;
 
-   rlstate.numUnprocessed = ClauseSetCardinality(state->unprocessed);
-   if (rlstate.numUnprocessed)
-      rlstate.unprocessedAvgWeight = ClauseSetStandardWeight(state->unprocessed) / (float) rlstate.numUnprocessed;
-   else
-      rlstate.unprocessedAvgWeight = -1.0;
+   // rlstate.numUnprocessed = ClauseSetCardinality(state->unprocessed);
+   // if (rlstate.numUnprocessed)
+   //    rlstate.unprocessedAvgWeight = ClauseSetStandardWeight(state->unprocessed) / (float) rlstate.numUnprocessed;
+   // else
+   //    rlstate.unprocessedAvgWeight = -1.0;
 
 
    timerEnd(startTime, &statePrepTimeSpent);
@@ -1630,7 +1664,7 @@ Clause_p ProcessClause(ProofState_p state, ProofControl_p control,
 
    // 2.) Receive "action" from agent 
    //     (to become control->hcb->current_eval to tell which queue to select from)
-   size_t action = recvRLAction();
+   size_t action = recvRLAction(state);
 
    // printf("Setting action in control->hcb->current_eval\n");
    control->hcb->current_eval = action;
