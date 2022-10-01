@@ -19,6 +19,7 @@
   -----------------------------------------------------------------------*/
 
 #include "cco_batch_spec.h"
+#include "cco_gproc_ctrl.h"
 
 
 
@@ -29,7 +30,7 @@
 char* BatchFilters[] =
 {
    "threshold010000",
-   "gf600_h_gu_R05_F100_L20000"  ,   /* protokoll_X----_auto_sine17 */
+   "gf600_h_gu_R05_F100_L20000"  ,   /* Protokoll_X----_auto_sine17 */
    "gf120_h_gu_R02_F100_L20000"  ,   /* protokoll_X----_auto_sine13 */
    "gf200_gu_RUU_F100_L20000"    ,   /* protokoll_X----_auto_sine08 */
    "gf200_h_gu_R03_F100_L20000"  ,   /* protokoll_X----_auto_sine16 */
@@ -151,8 +152,8 @@ EPCtrl_p batch_create_runner(StructFOFSpec_p ctrl,
                            ax_filter,
                            cspec,
                            fspec);
-   /* fprintf(GlobalOut, "# Spec has %d clauses and %d formulas (%lld)\n",
-      PStackGetSP(cspec), PStackGetSP(fspec), GetSecTimeMod()); */
+   fprintf(GlobalOut, "# Spec has %ld clauses and %ld formulas (%lld)\n",
+           PStackGetSP(cspec), PStackGetSP(fspec), GetSecTimeMod());
 
    file = TempFileName();
    fp   = SecureFOpen(file, "w");
@@ -161,11 +162,10 @@ EPCtrl_p batch_create_runner(StructFOFSpec_p ctrl,
    PStackClausePrintTSTP(fp, cspec);
    PStackFormulaPrintTSTP(fp, fspec);
    SecureFClose(fp);
-   //printf("=======================================\n");
+   //printf("# ====== Writing filtered file===========\n");
    //FilePrint(stdout, file);
-   //printf("=======================================\n");
-   /* fprintf(GlobalOut, "# Written new problem (%lld)\n",
-    * GetSecTimeMod()); */
+   //printf("# =======Filtered file written===========\n");
+   //fprintf(GlobalOut, "# Written new problem (%lld)\n", GetSecTimeMod());
 
    AxFilterPrintBuf(name, 320, ax_filter);
    pctrl = ECtrlCreateGeneric(executable, name, options, extra_options, cpu_time, file);
@@ -569,7 +569,7 @@ long BatchStructFOFSpecInit(BatchSpec_p spec,
    long res;
 
    res = StructFOFSpecParseAxioms(ctrl, spec->includes, spec->format, default_dir);
-   StructFOFSpecInitDistrib(ctrl);
+   StructFOFSpecInitDistrib(ctrl, false);
 
    return res;
 }
@@ -591,7 +591,8 @@ long BatchStructFOFSpecInit(BatchSpec_p spec,
 
 void StructFOFSpecAddProblem(StructFOFSpec_p ctrl,
                              ClauseSet_p clauses,
-                             FormulaSet_p formulas)
+                             FormulaSet_p formulas,
+                             bool trim)
 {
    GenDistribSizeAdjust(ctrl->f_distrib, ctrl->terms->sig);
    TBGCRegisterClauseSet(ctrl->terms, clauses);
@@ -600,7 +601,7 @@ void StructFOFSpecAddProblem(StructFOFSpec_p ctrl,
    PStackPushP(ctrl->formula_sets, formulas);
 
    GenDistribAddClauseSet(ctrl->f_distrib, clauses, 1);
-   GenDistribAddFormulaSet(ctrl->f_distrib, formulas, 1);
+   GenDistribAddFormulaSet(ctrl->f_distrib, formulas, 1, trim);
 }
 
 
@@ -683,6 +684,12 @@ long StructFOFSpecGetProblem(StructFOFSpec_p ctrl,
                                res_clauses,
                                res_formulas);
          break;
+   case AFLambdaDefines:
+         res = SelectDefinitions(ctrl->clause_sets,
+                                ctrl->formula_sets,
+                                res_clauses,
+                                res_formulas);
+         break;
    default:
          assert(false && "Unknown AxFilter type");
          break;
@@ -729,7 +736,8 @@ bool BatchProcessProblem(BatchSpec_p spec,
 
    StructFOFSpecAddProblem(ctrl,
                            cset,
-                           fset);
+                           fset,
+                           false);
 
    start = GetSecTime();
    end   = start+wct_limit;
@@ -743,11 +751,11 @@ bool BatchProcessProblem(BatchSpec_p spec,
       {
          used = now-start;
          handle = batch_create_runner(ctrl, spec->executable,
-                                      BatchStrategiesDiv[i],
+                                      BatchStrategies[i],
                                       answers,
                                       MIN((wct_limit+1)/2, wct_limit-used),
                                       AxFilterSetFindFilter(filters,
-                                                            BatchFiltersDiv[i]));
+                                                            BatchFilters[i]));
          EPCtrlSetAddProc(procs, handle);
          i++;
       }
@@ -844,11 +852,13 @@ bool BatchProcessFile(BatchSpec_p spec,
    FormulaSet_p fset;
    FILE* fp;
 
-   fprintf(GlobalOut, "\n# Processing %s -> %s\n", source, dest);
-   fprintf(GlobalOut, "# SZS status Started for %s\n", source);
-   fflush(GlobalOut);
+   //fprintf(GlobalOut, "\n# Processing %s -> %s\n", source, dest);
+   //fprintf(GlobalOut, "# SZS status Started for %s\n", source);
+   //fflush(GlobalOut);
 
    in = CreateScanner(StreamTypeFile, source, true, default_dir, true);
+   //printf("# Scanner for '%s' created\n", source);
+   fflush(stdout);
    ScannerSetFormat(in, TSTPFormat);
 
    dummy = ClauseSetAlloc();
@@ -873,8 +883,8 @@ bool BatchProcessFile(BatchSpec_p spec,
                              false);
    SecureFClose(fp);
 
-   fprintf(GlobalOut, "# SZS status Ended for %s\n\n", source);
-   fflush(GlobalOut);
+   //fprintf(GlobalOut, "# SZS status Ended for %s\n\n", source);
+   //fflush(GlobalOut);
 
    return res;
 }
@@ -1122,13 +1132,13 @@ void BatchProcessVariants(BatchSpec_p spec, char* variants[], char* provers[],
 
       for(i=0; i<PStackGetSP(spec->source_files); i++)
       {
-         // CASC-28-Hack
+         // CASC-28/J10-Hack
          ctrl = StructFOFSpecAlloc();
          concrete_batch_struct_FOF_spec_init(spec,
                                              ctrl,
                                              default_dir,
                                              variants[variant]);
-         // CASC-28-Hack ends
+         // CASC-28/J10-Hack ends
          abstract_name = PStackElementP(spec->source_files, i);
          if(PDArrayElementInt(solved, i))
          {
@@ -1153,20 +1163,49 @@ void BatchProcessVariants(BatchSpec_p spec, char* variants[], char* provers[],
             }
             DStrAppendStr(dest_name, PStackElementP(spec->dest_files, i));
 
-            success = BatchProcessFile(spec, per_prob_time,
-                                       ctrl, default_dir,
-                                       concrete_name,
-                                       DStrView(dest_name));
+
+            fprintf(GlobalOut, "\n# Processing %s -> %s\n",
+                    concrete_name, DStrView(dest_name));
+            fprintf(GlobalOut, "# SZS status Started for %s\n", concrete_name);
+            fflush(GlobalOut);
+
+
+            EGPCtrl_p handle = EGPCtrlCreate("E-LTB wrapper", 1, 1000000);
+            char buffer[EGPCTRL_BUFSIZE];
+            if(!handle)
+            {
+               // It's the wrapped child, do work
+               success = BatchProcessFile(spec, per_prob_time,
+                                          ctrl, default_dir,
+                                          concrete_name,
+                                          DStrView(dest_name));
+               exit(success);
+            }
+            // else
+            while(!EGPCtrlGetResult(handle, buffer,EGPCTRL_BUFSIZE))
+            {
+               // Nothing
+            }
+            success = (handle->result==PRTheorem)||(handle->result==PRUnsatisfiable);
+            fprintf(GlobalOut, "%s", DStrView(handle->output));
+            EGPCtrlFree(handle);
+
             if(success)
             {
                solved_count++;
                PDArrayAssignInt(solved, i, 1);
                concrete_prob_count -= (var_count-variant);
+               //printf("# SUCCESS: %ld abstract solved, %ld concrete remaining\n",
+               //solved_count, concrete_prob_count);
             }
             else
             {
                concrete_prob_count--;
+               //printf("# FAILURE: %ld abstract solved, %ld concrete remaining\n",
+               //solved_count, concrete_prob_count);
             }
+            fprintf(GlobalOut, "# SZS status Ended for %s\n\n", concrete_name);
+            fflush(GlobalOut);
 
             FREE(concrete_name);
          }

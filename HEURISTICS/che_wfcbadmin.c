@@ -39,6 +39,7 @@ char* WeightFunParseFunNames[]=
    "DAGweight",
    "RDAGweight",
    "RDAGweight2",
+   "RDAGweight3",
    "Refinedweight",
    "Refinedweight2",
    "Diversityweight",
@@ -75,6 +76,7 @@ char* WeightFunParseFunNames[]=
    "ConjectureTreeDistanceWeight",
    "ConjectureTermPrefixWeight",
    "ConjectureStrucDistanceWeight",
+   "ExternalWeight",
    NULL
 };
 
@@ -88,6 +90,7 @@ static WeightFunParseFun parse_fun_array[]=
    DAGWeightParse,
    RDAGWeightParse,
    RDAGWeight2Parse,
+   RDAGWeight3Parse,
    ClauseRefinedWeightParse,
    ClauseRefinedWeight2Parse,
    DiversityWeightParse,
@@ -124,6 +127,7 @@ static WeightFunParseFun parse_fun_array[]=
    ConjectureTreeDistanceWeightParse,
    ConjectureTermPrefixWeightParse,
    ConjectureStrucDistanceWeightParse,
+   ExternalWeightParse,
    (WeightFunParseFun)NULL
 };
 

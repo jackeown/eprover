@@ -106,6 +106,8 @@ void WFCBFree(WFCB_p junk)
 void ClauseAddEvaluation(WFCB_p wfcb, Clause_p clause, int pos, bool empty)
 {
    assert(clause->evaluations);
+   // TODO: Don't do this if wfcb represents an externalweight function.
+   // Maybe we can tell this using wfcb->data?
    clause->evaluations->evals[pos].heuristic = wfcb->wfcb_eval(wfcb->data, clause);
    if(empty)
    {

@@ -67,7 +67,6 @@ FILE* InputOpen(char *name, bool fail)
 
    if(name && strcmp(name,"-")!= 0)
    {
-
       VERBOUTARG2("Trying file ", name);
       in = fopen(name, "r");
 

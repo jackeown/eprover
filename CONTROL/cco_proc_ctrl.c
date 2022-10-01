@@ -213,7 +213,7 @@ EPCtrl_p ECtrlCreateGeneric(char* prover, char* name,
    DStrAppendInt(cmd, cpu_limit);
    DStrAppendStr(cmd, " ");
    DStrAppendStr(cmd, file);
-   //printf("Command: %s\n", DStrView(cmd));
+   //printf("# Command: %s\n", DStrView(cmd));
 
    res->prob_time  = cpu_limit;
    res->start_time = GetSecTime();
@@ -229,10 +229,9 @@ EPCtrl_p ECtrlCreateGeneric(char* prover, char* name,
    ret = fgets(line, 180, res->pipe);
    if(!ret || ferror(res->pipe))
    {
-      printf("Error\n");
+      Error("Cannot read eprover PID line", OTHER_ERROR);
    }
-
-   //fprintf(GlobalOut, "# Line = '%s'", l);
+   // fprintf(GlobalOut, "# Line = %s", line);
    if(!strstr(line, "# Pid: "))
    {
       Error("Cannot get eprover PID", OTHER_ERROR);
@@ -241,6 +240,7 @@ EPCtrl_p ECtrlCreateGeneric(char* prover, char* name,
    DStrAppendStr(res->output, line);
 
    DStrFree(cmd);
+   //printf("# eprover subprocess started\n");
    return res;
 }
 

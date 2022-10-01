@@ -294,6 +294,8 @@ bool     ClauseIsAntiRangeRestricted(Clause_p clause);
 
 bool     ClauseIsStronglyRangeRestricted(Clause_p clause);
 EqnSide  ClauseIsEqDefinition(Clause_p clause, int min_arity);
+void     ClauseExtractHODefinition(Clause_p clause, EqnSide def_side, Term_p *lside, Term_p* rside);
+
 
 Clause_p ClauseCopy(Clause_p clause, TB_p bank);
 Clause_p ClauseFlatCopy(Clause_p clause);
@@ -311,6 +313,7 @@ void     ClausePrintTPTPFormat(FILE* out, Clause_p clause);
 void     ClausePrintLOPFormat(FILE* out, Clause_p clause, bool fullterms);
 
 void     ClausePrint(FILE* out, Clause_p clause, bool fullterms);
+void     ClausePrintDBG(FILE* out, Clause_p clause);
 void     ClausePCLPrint(FILE* out, Clause_p clause, bool fullterms);
 void     ClauseTSTPCorePrint(FILE* out, Clause_p clause, bool fullterms);
 void     ClauseTSTPPrint(FILE* out, Clause_p clause, bool fullterms,
@@ -413,6 +416,9 @@ Clause_p ClauseNormalizeVars(Clause_p clause, VarBank_p fresh_vars);
    EqnListAddFunOccs((clause)->literals, (f_occur), (res_stack))
 
 long     ClauseCollectSubterms(Clause_p clause, PStack_p collector);
+#define ClauseCollectGroundTerms(clause, res, top_only, neg_lits, pos_lits)\
+   EqnListCollectGroundTerms((clause)->literals, (res), (top_only), (neg_lits), (pos_lits))
+
 long     ClauseReturnFCodes(Clause_p clause, PStack_p f_codes);
 
 #define CLAUSE_ENSURE_DERIVATION(clause)                                \
@@ -421,6 +427,7 @@ long     ClauseReturnFCodes(Clause_p clause, PStack_p f_codes);
 bool    ClauseIsUntyped(Clause_p clause);
 
 bool    ClauseQueryLiteral(Clause_p clause, bool (*query_fun)(Eqn_p));
+bool    ClauseRecognizeChoice(IntMap_p choice_symbols_map, Clause_p cl);
 #endif
 
 /*---------------------------------------------------------------------*/

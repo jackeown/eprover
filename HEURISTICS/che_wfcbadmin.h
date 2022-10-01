@@ -42,6 +42,7 @@ Changes
 #include <che_prefixweight.h>
 #include <che_strucweight.h>
 #include <che_diversityweight.h>
+#include <che_externalweight.h>
 
 
 
