@@ -1003,10 +1003,15 @@ ClauseSet_p IAS_LinearRegressionCut(ClauseSet_p IAS_inferences, long processed_c
    EvalIdxClause* sorted = malloc(sizeof(EvalIdxClause) * n);
    Clause_p handle = IAS_inferences->anchor->succ;
 
+   // printf("%d clauses total in LRC\n",n);
    for(int i=0; i<n; i++){
       sorted[i].clause = handle;
       sorted[i].eval = rankingSums[i];
       sorted[i].idx = i;
+
+      // printf("%d: ", i);
+      // ClausePrint(stdout, handle, true);
+      // EvalListPrintComment(GlobalOut, handle->evaluations); printf("\n");
       handle = handle->succ;
    }
    qsort(sorted, n, sizeof(EvalIdxClause), evalClauseComparator);
@@ -1052,7 +1057,7 @@ ClauseSet_p IAS_LinearRegressionCut(ClauseSet_p IAS_inferences, long processed_c
          if(slope_diff > biggest_slope_diff){
             best_split = split_idx;
             biggest_slope_diff = slope_diff;
-            printf("Best split, biggest_slope_diff: (%ld, %f)\n", best_split, biggest_slope_diff);
+            // printf("Best split, biggest_slope_diff: (%ld, %f)\n", best_split, biggest_slope_diff);
          }
       }
 
@@ -1067,12 +1072,15 @@ ClauseSet_p IAS_LinearRegressionCut(ClauseSet_p IAS_inferences, long processed_c
    }
 
 
-
-
-
    // If you're only going to throw away 2 or less, just keep them all?
    if (best_split >= n - 2) {
       best_split = n;
+   }
+
+   // Force it to keep at least one.
+   if (best_split == 0){
+      printf("IAS wanted to keep zero clauses, but the show must go on...\n");
+      best_split = 1;
    }
 
    // 3.) Filter out and return the clauses corresponding to the left half after the split.
@@ -1082,6 +1090,8 @@ ClauseSet_p IAS_LinearRegressionCut(ClauseSet_p IAS_inferences, long processed_c
 
    free(evals);
    free(sorted);
+
+   printf("Keeping %d clauses...\n", best_split);
 
    return filtered;
 }
@@ -2066,44 +2076,62 @@ Clause_p Saturate(ProofState_p state, ProofControl_p control, long
          tb_insert_limit > state->terms->insertions &&
          (!state->watchlist||!ClauseSetEmpty(state->watchlist)))
    {
-      count++;
-      unsatisfiable = ProcessClause(state, control, answer_limit);
-      if(unsatisfiable)
-      {
-         break;
+
+      bool not_in_presaturation_interreduction = (control->heuristic_parms.selection_strategy != SelectNoGeneration);
+      static bool startup = true;
+
+      // This is a hack to make the starting clauses start out in
+      // IAS_Inferences instead of unprocessed
+      if (not_in_presaturation_interreduction && startup){
+         printf("Moving all input clauses into IAS_inferences...\n");
+         printf("Size of unprocessed: %ld\n", ClauseSetCardinality(state->unprocessed));
+         printf("Size of IAS_inferences: %ld\n", ClauseSetCardinality(state->IAS_inferences));
+
+         ClauseSetInsertSet(state->IAS_inferences, state->unprocessed);
+         ClauseSetReweight(control->hcb, state->IAS_inferences);
+         printf("Size of unprocessed: %ld\n", ClauseSetCardinality(state->unprocessed));
+         printf("Size of IAS_inferences: %ld\n", ClauseSetCardinality(state->IAS_inferences));
+         startup=false;
       }
-      unsatisfiable = cleanup_unprocessed_clauses(state, control);
-      if(unsatisfiable)
-      {
-         break;
-      }
-      if(control->heuristic_parms.sat_check_grounding != GMNoGrounding)
-      {
-         if(ProofStateCardinality(state) >= sat_check_size_limit)
-         {
-            unsatisfiable = SATCheck(state, control);
-            while(sat_check_size_limit <= ProofStateCardinality(state))
-            {
-               sat_check_size_limit += control->heuristic_parms.sat_check_size_limit;
-            }
-         }
-         else if(state->proc_non_trivial_count >= sat_check_step_limit)
-         {
-            unsatisfiable = SATCheck(state, control);
-            sat_check_step_limit += control->heuristic_parms.sat_check_step_limit;
-         }
-         else if( state->terms->insertions >= sat_check_ttinsert_limit)
-         {
-            unsatisfiable = SATCheck(state, control);
-            sat_check_ttinsert_limit *=2;
-         }
+      else{
+         count++;
+         unsatisfiable = ProcessClause(state, control, answer_limit);
          if(unsatisfiable)
          {
-            PStackPushP(state->extract_roots, unsatisfiable);
             break;
          }
+         unsatisfiable = cleanup_unprocessed_clauses(state, control);
+         if(unsatisfiable)
+         {
+            break;
+         }
+         if(control->heuristic_parms.sat_check_grounding != GMNoGrounding)
+         {
+            if(ProofStateCardinality(state) >= sat_check_size_limit)
+            {
+               unsatisfiable = SATCheck(state, control);
+               while(sat_check_size_limit <= ProofStateCardinality(state))
+               {
+                  sat_check_size_limit += control->heuristic_parms.sat_check_size_limit;
+               }
+            }
+            else if(state->proc_non_trivial_count >= sat_check_step_limit)
+            {
+               unsatisfiable = SATCheck(state, control);
+               sat_check_step_limit += control->heuristic_parms.sat_check_step_limit;
+            }
+            else if( state->terms->insertions >= sat_check_ttinsert_limit)
+            {
+               unsatisfiable = SATCheck(state, control);
+               sat_check_ttinsert_limit *=2;
+            }
+            if(unsatisfiable)
+            {
+               PStackPushP(state->extract_roots, unsatisfiable);
+               break;
+            }
+         }
       }
-
 
 
       ///////////////////////////////////////////////////////////////////////
@@ -2112,7 +2140,6 @@ Clause_p Saturate(ProofState_p state, ProofControl_p control, long
       // Filters IAS_inferences clause set via so-called                   //
       // "linear regression cut" on clause eval func evals.                //
       // and appends them to the unprocessed set if it is empty.
-      bool not_in_presaturation_interreduction = (control->heuristic_parms.selection_strategy != SelectNoGeneration);
       bool IAS_inferences_empty = ClauseSetEmpty(state->IAS_inferences);
       if(ClauseSetEmpty(state->unprocessed) && not_in_presaturation_interreduction && !IAS_inferences_empty){
 
