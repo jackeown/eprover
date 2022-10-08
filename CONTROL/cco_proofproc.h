@@ -84,7 +84,7 @@ typedef struct {
   float loss;
 } IAS_LinRegResult;
 
-ClauseSet_p IAS_LinearRegressionCut(ClauseSet_p IAS_inferences, long);
+ClauseSet_p IAS_LinearRegressionCut(ClauseSet_p IAS_inferences, long, HCB_p);
 
 
 

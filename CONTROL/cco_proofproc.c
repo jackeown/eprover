@@ -942,7 +942,7 @@ IdxClause* sort(ClauseSet_p clauses){
 }
 
 
-double* getRankingSums(ClauseSet_p clauses, long processed_count){
+double* getRankingSums(ClauseSet_p clauses, long processed_count, HCB_p hcb){
    int num_evals = clauses->anchor->succ->evaluations->eval_no;
    long num_clauses = clauses->members;
    
@@ -959,21 +959,50 @@ double* getRankingSums(ClauseSet_p clauses, long processed_count){
       sortedz[eval] = sort(clauses);
    }
 
+   int weightSum = (hcb->select_switch->array[hcb->wfcb_no - 1].i_val);
+
    // 2.) Find each clause's (sum of) positions within each sorted list.
    for(int eval=0; eval<num_evals; eval++){
       IdxClause* sorted = sortedz[eval];
+      int weight;
+      if (eval == 0){
+         weight = hcb->select_switch->array[eval].i_val;
+      }
+      else{
+         weight = hcb->select_switch->array[eval].i_val - hcb->select_switch->array[eval-1].i_val;
+      }
+
       for(int c=0; c<clauses->members; c++){
-         rankings[sorted[c].idx] += (double) c;
+         rankings[sorted[c].idx] += (double) (c*((double) weight/(double) weightSum));
       }
       free(sorted);
    }
 
+   // printf("###### BEGIN CLAUSE EVALUATIONS ######\n");
+   // Clause_p handle = clauses->anchor->succ;
+   // for (int i=0; i<clauses->members; i++){
+   //    ClausePrint(stdout, handle, true);
+   //    printf("\n");
+   //    EvalListPrint(stdout, handle->evaluations);
+   //    printf("\n");
+   //    printf("rankingSum: %lf\n", rankings[i]);
 
-   Clause_p handle = clauses->anchor;
+   //    printf("\n\n");
+   //    handle = handle->succ;
+   // }
+   // printf("\n###### END CLAUSE EVALUATIONS ######\n");
+
+   Clause_p handle = clauses->anchor->succ;
    for(int i=0; i<num_clauses; i++){
-      handle = handle->succ;
-      double time_ratio = ((double) handle->create_date) / ((double) processed_count);
+      double time_ratio = ((double) handle->create_date) / ((double) processed_count+1);
+      // printf("create date: %d\n", handle->create_date);
+      // printf("processed count: %d\n", processed_count);
+      // printf("Time ratio: %lf\n", time_ratio);
+      // printf("Rankings[i] before: %lf\n", rankings[i]);
       rankings[i] *= time_ratio;
+      // printf("Rankings[i] after: %lf\n", rankings[i]);
+
+      handle = handle->succ;
    }
 
    free(sortedz);
@@ -988,7 +1017,7 @@ int max(int a, int b){
 
 
 // Currently inverse linear regression cut on CDF data.
-ClauseSet_p IAS_LinearRegressionCut(ClauseSet_p IAS_inferences, long processed_count){
+ClauseSet_p IAS_LinearRegressionCut(ClauseSet_p IAS_inferences, long processed_count, HCB_p hcb){
 
    long n = IAS_inferences->members;
    size_t best_split = n;
@@ -998,7 +1027,7 @@ ClauseSet_p IAS_LinearRegressionCut(ClauseSet_p IAS_inferences, long processed_c
 
    // 1.) Sort inference evaluations into "evals" list.
    // IdxClause* sorted = sort(IAS_inferences);
-   double* rankingSums = getRankingSums(IAS_inferences, processed_count);
+   double* rankingSums = getRankingSums(IAS_inferences, processed_count, hcb);
 
    EvalIdxClause* sorted = malloc(sizeof(EvalIdxClause) * n);
    Clause_p handle = IAS_inferences->anchor->succ;
@@ -1015,14 +1044,23 @@ ClauseSet_p IAS_LinearRegressionCut(ClauseSet_p IAS_inferences, long processed_c
       handle = handle->succ;
    }
    qsort(sorted, n, sizeof(EvalIdxClause), evalClauseComparator);
+
+
+
+   // for(int i=0; i<n; i++){
+   //    printf("###### BEGIN _____________ ######\n");
+   //    ClausePrint(stdout, sorted[i].clause, true);
+   //    printf(" - %lf\n", sorted[i].eval);
+
+   //    printf("###### END _____________ ######\n");
+   // }
+
    free(rankingSums);
 
    float* evals = SizeMalloc(n * sizeof(float));
    for(size_t i=0; i<n; i++){
       evals[i] = sorted[i].eval;
    }
-
-
 
 
 
@@ -2152,7 +2190,7 @@ Clause_p Saturate(ProofState_p state, ProofControl_p control, long
 
          // Filter IAS_inferences
          fprintf(stdout, "Begin Filtering IAS_inferences...%ld\n", state->IAS_inferences->members);
-         ClauseSet_p filtered = IAS_LinearRegressionCut(state->IAS_inferences, count);
+         ClauseSet_p filtered = IAS_LinearRegressionCut(state->IAS_inferences, count, control->hcb);
          // ClauseSet_p filtered = state->IAS_inferences;
          fprintf(stdout, "Done Filtering IAS_inferences...%ld\n", filtered->members);
          fprintf(stdout, "inferences left in IAS_inferences...%ld\n", state->IAS_inferences->members);
