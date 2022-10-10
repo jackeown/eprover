@@ -994,7 +994,9 @@ double* getRankingSums(ClauseSet_p clauses, long processed_count, HCB_p hcb){
 
    Clause_p handle = clauses->anchor->succ;
    for(int i=0; i<num_clauses; i++){
-      double time_ratio = ((double) handle->create_date) / ((double) processed_count+1);
+      double time_ratio = ((double) handle->create_date + 1) / ((double) processed_count+1);
+      // ClausePrint(stdout, handle, true);
+      // printf("\n");
       // printf("create date: %d\n", handle->create_date);
       // printf("processed count: %d\n", processed_count);
       // printf("Time ratio: %lf\n", time_ratio);
