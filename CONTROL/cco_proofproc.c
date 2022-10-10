@@ -1523,6 +1523,8 @@ void sendRLState(RLProofStateCell state){
    write(StatePipe, &(state.processedAvgWeight), sizeof(float));
    write(StatePipe, &(state.unprocessedAvgWeight), sizeof(float));
 
+   printf("RL State: (%ld, %ld, %f, %f)\n", state.numProcessed, state.numUnprocessed, state.processedAvgWeight, state.unprocessedAvgWeight);
+
    timerEnd(start, &statePipeTimeSpent);
 }
 
@@ -1552,6 +1554,8 @@ int recvRLAction(){
 
    // int action = rand() % 75;
 
+
+   printf("RL Action: %d\n", action);
    timerEnd(start, &actionPipeTimeSpent);
    return action;
 }
@@ -1566,6 +1570,7 @@ void sendRLReward(float reward){
    if (reward == 1.0){
       printf("RL thinks proof is found!\n");
    }
+   // printf("RL Reward: %f\n", reward);
    timerEnd(start, &rewardPipeTimeSpent);
 }
 
@@ -1599,61 +1604,64 @@ Clause_p ProcessClause(ProofState_p state, ProofControl_p control,
    state->RLTimeSpent_rewardPipe = rewardPipeTimeSpent;
    state->RLTimeSpent_prep = statePrepTimeSpent;
 
+   bool not_in_presaturation_interreduction = (control->heuristic_parms.selection_strategy != SelectNoGeneration);
+
    //////// Jack McKeown's Reinforcement Learning Idea ///////////////////
-   // 1.) Send RL proof "state" to agent
-   long long startTime = timerStart();
-   rlstate.numProcessed = ClauseSetCardinality(state->processed_neg_units) \
-                        + ClauseSetCardinality(state->processed_non_units) \
-                        + ClauseSetCardinality(state->processed_pos_eqns) \
-                        + ClauseSetCardinality(state->processed_pos_rules);
+   if (not_in_presaturation_interreduction){
+      
+      // 1.) Send RL proof "state" to agent
+      long long startTime = timerStart();
+      rlstate.numProcessed = ClauseSetCardinality(state->processed_neg_units) \
+                           + ClauseSetCardinality(state->processed_non_units) \
+                           + ClauseSetCardinality(state->processed_pos_eqns) \
+                           + ClauseSetCardinality(state->processed_pos_rules);
 
-   long long total = 0;
-   total += ClauseSetStandardWeight(state->processed_neg_units);
-   total += ClauseSetStandardWeight(state->processed_non_units);
-   total += ClauseSetStandardWeight(state->processed_pos_eqns);
-   total += ClauseSetStandardWeight(state->processed_pos_rules);
-   if (rlstate.numProcessed)
-      rlstate.processedAvgWeight = total / (float) rlstate.numProcessed;
-   else
-      rlstate.processedAvgWeight = -1.0;
+      long long total = 0;
+      total += ClauseSetStandardWeight(state->processed_neg_units);
+      total += ClauseSetStandardWeight(state->processed_non_units);
+      total += ClauseSetStandardWeight(state->processed_pos_eqns);
+      total += ClauseSetStandardWeight(state->processed_pos_rules);
+      if (rlstate.numProcessed)
+         rlstate.processedAvgWeight = total / (float) rlstate.numProcessed;
+      else
+         rlstate.processedAvgWeight = -1.0;
 
-   rlstate.numUnprocessed = ClauseSetCardinality(state->unprocessed);
-   if (rlstate.numUnprocessed)
-      rlstate.unprocessedAvgWeight = ClauseSetStandardWeight(state->unprocessed) / (float) rlstate.numUnprocessed;
-   else
-      rlstate.unprocessedAvgWeight = -1.0;
+      rlstate.numUnprocessed = ClauseSetCardinality(state->unprocessed);
+      if (rlstate.numUnprocessed)
+         rlstate.unprocessedAvgWeight = ClauseSetStandardWeight(state->unprocessed) / (float) rlstate.numUnprocessed;
+      else
+         rlstate.unprocessedAvgWeight = -1.0;
 
 
-   timerEnd(startTime, &statePrepTimeSpent);
+      timerEnd(startTime, &statePrepTimeSpent);
 
-   sendRLState(rlstate);
+      sendRLState(rlstate);
 
-   // 2.) Receive "action" from agent 
-   //     (to become control->hcb->current_eval to tell which queue to select from)
-   size_t action = recvRLAction();
+      // 2.) Receive "action" from agent 
+      //     (to become control->hcb->current_eval to tell which queue to select from)
+      size_t action = recvRLAction();
 
-   // printf("Setting action in control->hcb->current_eval\n");
-   control->hcb->current_eval = action;
+      // printf("Setting action in control->hcb->current_eval\n");
+      control->hcb->current_eval = action;
 
-   // 3.) Send "reward" to agent 
-   //     (so that the external guidance can learn)
-   //     (placed before every return statement in this function.)
+      // 3.) Send "reward" to agent 
+      //     (so that the external guidance can learn)
+      //     (placed before every return statement in this function.)
+   }
    ///////////////////////////////////////////////////////////////////////
 
-   // printf("control->hcb->hcb_select()\n");
    clause = control->hcb->hcb_select(control->hcb,
                                      state->unprocessed);
    
-   // printf("only thing left is to send the reward I believe...\n");
-
    // rlstate.queuePickWeightSum[action] += ClauseWeight(clause, 1,1,1,1,1,1, false);
 
    if(!clause)
    {
-      sendRLReward(0.0);
+      if (not_in_presaturation_interreduction){
+         sendRLReward(0.0);
+      }
       return NULL;
    }
-   //EvalListPrintComment(GlobalOut, clause->evaluations); printf("\n");
    if(OutputLevel==1)
    {
       putc('#', GlobalOut);
@@ -1684,7 +1692,9 @@ Clause_p ProcessClause(ProofState_p state, ProofControl_p control,
       {
          ClauseSetDeleteEntry(arch_copy);
       }
-      sendRLReward(0.0);
+      if (not_in_presaturation_interreduction){
+         sendRLReward(0.0);
+      }
       return NULL;
    }
 
@@ -1698,7 +1708,9 @@ Clause_p ProcessClause(ProofState_p state, ProofControl_p control,
       {
          clause = FVUnpackClause(pclause);
          ClauseEvaluateAnswerLits(clause);
-         sendRLReward(1.0);
+         if (not_in_presaturation_interreduction){
+            sendRLReward(1.0);
+         }
          return clause;
       }
    }
@@ -1714,10 +1726,14 @@ Clause_p ProcessClause(ProofState_p state, ProofControl_p control,
       if(resclause)
       {
          PStackPushP(state->extract_roots, resclause);
-         sendRLReward(1.0);
+         if (not_in_presaturation_interreduction){
+            sendRLReward(1.0);
+         }
       }
       else{
-         sendRLReward(0.0);
+         if (not_in_presaturation_interreduction){
+            sendRLReward(0.0);
+         }
       }
       
       return resclause;
@@ -1799,10 +1815,14 @@ Clause_p ProcessClause(ProofState_p state, ProofControl_p control,
    if((empty = insert_new_clauses(state, control)))
    {
       PStackPushP(state->extract_roots, empty);
-      sendRLReward(1.0);
+      if (not_in_presaturation_interreduction){
+         sendRLReward(1.0);
+      }
       return empty;
    }
-   sendRLReward(0.0);
+   if(not_in_presaturation_interreduction){
+      sendRLReward(0.0);
+   }
    return NULL;
 }
 
