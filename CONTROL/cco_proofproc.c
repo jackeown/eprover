@@ -1604,7 +1604,8 @@ Clause_p ProcessClause(ProofState_p state, ProofControl_p control,
    state->RLTimeSpent_rewardPipe = rewardPipeTimeSpent;
    state->RLTimeSpent_prep = statePrepTimeSpent;
 
-   bool not_in_presaturation_interreduction = (control->heuristic_parms.selection_strategy != SelectNoGeneration);
+   bool not_in_presaturation_interreduction = true;
+   // bool not_in_presaturation_interreduction = (control->heuristic_parms.selection_strategy != SelectNoGeneration);
 
    //////// Jack McKeown's Reinforcement Learning Idea ///////////////////
    if (not_in_presaturation_interreduction){
@@ -1653,13 +1654,15 @@ Clause_p ProcessClause(ProofState_p state, ProofControl_p control,
    clause = control->hcb->hcb_select(control->hcb,
                                      state->unprocessed);
    
-   // rlstate.queuePickWeightSum[action] += ClauseWeight(clause, 1,1,1,1,1,1, false);
+   printf("Given Clause: ");
+   ClausePrint(stdout, clause, true);
 
    if(!clause)
    {
       if (not_in_presaturation_interreduction){
          sendRLReward(0.0);
       }
+      printf("!clause\n");
       return NULL;
    }
    if(OutputLevel==1)
@@ -1695,6 +1698,7 @@ Clause_p ProcessClause(ProofState_p state, ProofControl_p control,
       if (not_in_presaturation_interreduction){
          sendRLReward(0.0);
       }
+      printf("Subsumed I think!\n");
       return NULL;
    }
 
@@ -1711,6 +1715,7 @@ Clause_p ProcessClause(ProofState_p state, ProofControl_p control,
          if (not_in_presaturation_interreduction){
             sendRLReward(1.0);
          }
+         printf("ClauseIsSemFalse!\n");
          return clause;
       }
    }
