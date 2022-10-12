@@ -812,12 +812,12 @@ void outputHeuristicVals(ClauseSet_p clauses, FILE* csv){
 
 void outputHeuristicInfo(ClauseSet_p clauses, int i){
 
-   char filename[200];
-   snprintf(filename, 200, "heuristic_info_%d.csv", i);
-   FILE* csv = fopen(filename, "w");
-   outputHeuristicNames(clauses, csv);
-   outputHeuristicVals(clauses, csv);
-   fclose(csv);
+   // char filename[200];
+   // snprintf(filename, 200, "heuristic_info_%d.csv", i);
+   // FILE* csv = fopen(filename, "w");
+   // outputHeuristicNames(clauses, csv);
+   // outputHeuristicVals(clauses, csv);
+   // fclose(csv);
 }
 
 
