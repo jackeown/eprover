@@ -1553,9 +1553,15 @@ int recvRLAction(ProofState_p state){
 
    // int action = rand() % 75;
 
-   int action = MCTSSearch(MCTSChosen, 100);
+   int action = MCTSSearch(MCTSChosen, 200);
    if (MCTS_SIM){
       OutputLevel = 0;
+
+      if (TimeIsUp){
+         float simValue = -1.0 * state->unprocessed->members / 100.0;
+         write(MCTS_PIPE[1], &simValue, sizeof(float));
+         exit(0);
+      }
 
       // What node am I simulating?...
       MCTSNode_p node = Selection(MCTSChosen);
