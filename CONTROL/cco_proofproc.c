@@ -1509,6 +1509,9 @@ void initRL(){
 
 }
 
+void printRLState(RLProofStateCell state){
+   printf("RL State: (%ld, %ld, %f, %f)\n", state.numProcessed, state.numUnprocessed, state.processedAvgWeight, state.unprocessedAvgWeight);
+}
 
 void sendRLState(RLProofStateCell state){
    long long start = timerStart();
@@ -1522,8 +1525,6 @@ void sendRLState(RLProofStateCell state){
 
    write(StatePipe, &(state.processedAvgWeight), sizeof(float));
    write(StatePipe, &(state.unprocessedAvgWeight), sizeof(float));
-
-   printf("RL State: (%ld, %ld, %f, %f)\n", state.numProcessed, state.numUnprocessed, state.processedAvgWeight, state.unprocessedAvgWeight);
 
    timerEnd(start, &statePipeTimeSpent);
 }
@@ -1602,60 +1603,50 @@ Clause_p ProcessClause(ProofState_p state, ProofControl_p control,
    state->RLTimeSpent_rewardPipe = rewardPipeTimeSpent;
    state->RLTimeSpent_prep = statePrepTimeSpent;
 
-   bool not_in_presaturation_interreduction = true;
-   // bool not_in_presaturation_interreduction = (control->heuristic_parms.selection_strategy != SelectNoGeneration);
+   bool not_in_presaturation_interreduction = (control->heuristic_parms.selection_strategy != SelectNoGeneration);
 
    //////// Jack McKeown's Reinforcement Learning Idea ///////////////////
-   if (not_in_presaturation_interreduction){
-      
-      // 1.) Send RL proof "state" to agent
-      long long startTime = timerStart();
-      rlstate.numProcessed = ClauseSetCardinality(state->processed_neg_units) \
-                           + ClauseSetCardinality(state->processed_non_units) \
-                           + ClauseSetCardinality(state->processed_pos_eqns) \
-                           + ClauseSetCardinality(state->processed_pos_rules);
+   long long startTime = timerStart();
+   rlstate.numProcessed = ClauseSetCardinality(state->processed_neg_units) \
+                        + ClauseSetCardinality(state->processed_non_units) \
+                        + ClauseSetCardinality(state->processed_pos_eqns) \
+                        + ClauseSetCardinality(state->processed_pos_rules);
 
-      long long total = 0;
-      total += ClauseSetStandardWeight(state->processed_neg_units);
-      total += ClauseSetStandardWeight(state->processed_non_units);
-      total += ClauseSetStandardWeight(state->processed_pos_eqns);
-      total += ClauseSetStandardWeight(state->processed_pos_rules);
-      if (rlstate.numProcessed)
-         rlstate.processedAvgWeight = total / (float) rlstate.numProcessed;
-      else
-         rlstate.processedAvgWeight = -1.0;
+   long long total = 0;
+   total += ClauseSetStandardWeight(state->processed_neg_units);
+   total += ClauseSetStandardWeight(state->processed_non_units);
+   total += ClauseSetStandardWeight(state->processed_pos_eqns);
+   total += ClauseSetStandardWeight(state->processed_pos_rules);
+   if (rlstate.numProcessed)
+      rlstate.processedAvgWeight = total / (float) rlstate.numProcessed;
+   else
+      rlstate.processedAvgWeight = -1.0;
 
-      rlstate.numUnprocessed = ClauseSetCardinality(state->unprocessed);
-      if (rlstate.numUnprocessed)
-         rlstate.unprocessedAvgWeight = ClauseSetStandardWeight(state->unprocessed) / (float) rlstate.numUnprocessed;
-      else
-         rlstate.unprocessedAvgWeight = -1.0;
+   rlstate.numUnprocessed = ClauseSetCardinality(state->unprocessed);
+   if (rlstate.numUnprocessed)
+      rlstate.unprocessedAvgWeight = ClauseSetStandardWeight(state->unprocessed) / (float) rlstate.numUnprocessed;
+   else
+      rlstate.unprocessedAvgWeight = -1.0;
 
+   timerEnd(startTime, &statePrepTimeSpent);
 
-      timerEnd(startTime, &statePrepTimeSpent);
+   sendRLState(rlstate);
 
-      sendRLState(rlstate);
+   size_t action = recvRLAction();
+   control->hcb->current_eval = action;
 
-      // 2.) Receive "action" from agent 
-      //     (to become control->hcb->current_eval to tell which queue to select from)
-      size_t action = recvRLAction();
-
-      // printf("Setting action in control->hcb->current_eval\n");
-      control->hcb->current_eval = action;
-
-      // 3.) Send "reward" to agent 
-      //     (so that the external guidance can learn)
-      //     (placed before every return statement in this function.)
-   }
    ///////////////////////////////////////////////////////////////////////
 
-   printf("CEF Choice: %d\n", control->hcb->current_eval);
 
    clause = control->hcb->hcb_select(control->hcb,
                                      state->unprocessed);
    
-   printf("Given Clause: ");
-   ClausePrint(stdout, clause, true);
+   if (not_in_presaturation_interreduction){
+      printRLState(rlstate);
+      printf("CEF Choice: %d\n", control->hcb->current_eval);
+      printf("Given Clause: ");
+      ClausePrint(stdout, clause, true);
+   }
 
    if(!clause)
    {
