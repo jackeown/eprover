@@ -1554,8 +1554,6 @@ int recvRLAction(){
 
    // int action = rand() % 75;
 
-
-   printf("RL Action: %d\n", action);
    timerEnd(start, &actionPipeTimeSpent);
    return action;
 }
@@ -1650,6 +1648,8 @@ Clause_p ProcessClause(ProofState_p state, ProofControl_p control,
       //     (placed before every return statement in this function.)
    }
    ///////////////////////////////////////////////////////////////////////
+
+   printf("CEF Choice: %d\n", control->hcb->current_eval);
 
    clause = control->hcb->hcb_select(control->hcb,
                                      state->unprocessed);
