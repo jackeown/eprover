@@ -1643,7 +1643,7 @@ Clause_p ProcessClause(ProofState_p state, ProofControl_p control,
    
    if (not_in_presaturation_interreduction){
       printRLState(rlstate);
-      printf("CEF Choice: %d\n", control->hcb->current_eval);
+      printf("CEF Choice: %d\n", action);
       printf("Given Clause: ");
       ClausePrint(stdout, clause, true);
    }
