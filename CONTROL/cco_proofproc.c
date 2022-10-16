@@ -1921,8 +1921,17 @@ Clause_p ProcessClause(ProofState_p state, ProofControl_p control,
    FVPackedClause_p pclause;
    SysDate          clausedate;
 
+   size_t action = control->hcb->current_eval;
    clause = control->hcb->hcb_select(control->hcb,
                                      state->unprocessed);
+
+   bool not_in_presaturation_interreduction = (control->heuristic_parms.selection_strategy != SelectNoGeneration);
+   if (not_in_presaturation_interreduction){
+      printf("CEF Choice: %d\n", action);
+      printf("Given Clause: ");
+      ClausePrint(stdout, clause, true);
+   }
+   
    if(!clause)
    {
       return NULL;
