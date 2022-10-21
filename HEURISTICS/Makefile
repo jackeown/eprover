@@ -68,7 +68,8 @@ HEURISTICS_LIB = che_wfcb.o che_wfcbadmin.o \
 		 che_termweight.o \
 	         che_random.o \
                  che_diversityweight.o \
-				 che_externalweight.o
+		 che_externalweight.o \
+		 che_new_autoschedule.o
 
 
 $(LIB): $(HEURISTICS_LIB)

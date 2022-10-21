@@ -37,7 +37,6 @@ static unsigned int xstate = 123456789,
 static RandStateCell rand_state = {123456789,987654321,43219876,6543217};
 
 
-
 /*---------------------------------------------------------------------*/
 /*                      Forward Declarations                           */
 /*---------------------------------------------------------------------*/
@@ -323,10 +322,12 @@ void SetProblemType(ProblemType t)
   }
   else
   {
-     Error("Mixing of first order and higer order syntax is not allowed.",
+     Error("Mixing of first order and higher order syntax is not allowed.",
            SYNTAX_ERROR);
   }
 }
+
+
 /*---------------------------------------------------------------------*/
 /*                        End of File                                  */
 /*---------------------------------------------------------------------*/

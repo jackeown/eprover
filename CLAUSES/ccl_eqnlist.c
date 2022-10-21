@@ -21,6 +21,7 @@
 
 #include "ccl_eqnlist.h"
 #include "cte_typecheck.h"
+#include <cte_lambda.h>
 
 
 
@@ -702,7 +703,7 @@ Eqn_p EqnListCopyDisjoint(Eqn_p list)
 // Function: EqnListCopyRepl()
 //
 //   Return a copy of the list with terms from bank, except that
-//   all occurances of "old" are replaced with repl (which has to be
+//   all occurrences of "old" are replaced with repl (which has to be
 //   in bank).
 //
 // Global Variables: -
@@ -733,7 +734,7 @@ Eqn_p EqnListCopyRepl(Eqn_p list, TB_p bank, Term_p old, Term_p repl)
 // Function: EqnListCopyReplPlain()
 //
 //   Return a copy of the list with terms from bank, except that
-//   all occurances of "old" are replaced with repl (which has to be
+//   all occurrences of "old" are replaced with repl (which has to be
 //   in bank). Terma are not instantiated.
 //
 // Global Variables: -
@@ -1779,7 +1780,7 @@ void EqnListAddSymbolFeatures(Eqn_p list, PStack_p mod_stack, long *feature_arra
 //
 // Function: EqnListComputeFunctionRanks()
 //
-//   Compute the occurance rank for all function symbols in list.
+//   Compute the occurrence rank for all function symbols in list.
 //
 // Global Variables:
 //
@@ -1962,6 +1963,102 @@ long EqnListCollectSubterms(Eqn_p list, PStack_p collector)
    {
       res+= EqnCollectSubterms(list, collector);
       list = list->next;
+   }
+   return res;
+}
+
+/*-----------------------------------------------------------------------
+//
+// Function: EqnListCollectGroundTerms()
+//
+//   Collect the non-constant ground terms of (positive/negative)
+//   equations in list into res.
+//
+// Global Variables: -
+//
+// Side Effects    : Memory operations via *res.
+//
+/----------------------------------------------------------------------*/
+
+long EqnListCollectGroundTerms(Eqn_p list, PTree_p *res, bool top_only,
+                               bool pos_lits, bool neg_lits)
+{
+   long count = 0;
+
+   while(list)
+   {
+      if((EqnIsPositive(list)&&pos_lits)||(EqnIsNegative(list)&&neg_lits))
+      {
+         count += EqnCollectGroundTerms(list, res, top_only);
+      }
+      list = list->next;
+   }
+   return count;
+}
+
+/*-----------------------------------------------------------------------
+//
+// Function: EqnListMapTerms()
+//
+//   Map all terms in the equation list using f.
+//
+// Global Variables: -
+//
+// Side Effects    : Sets the OpFlag of newly collected terms.
+//
+/----------------------------------------------------------------------*/
+
+void EqnListMapTerms(Eqn_p list, TermMapper_p f, void* arg)
+{
+   for(Eqn_p lit = list; lit; lit = lit->next)
+   {
+      EqnMap(lit, f, arg);
+   }
+}
+
+/*-----------------------------------------------------------------------
+//
+// Function: EqnListLambdaNormalize()
+//
+//   Map all terms in the equation list using f.
+//
+// Global Variables: -
+//
+// Side Effects    : Sets the OpFlag of newly collected terms.
+//
+/----------------------------------------------------------------------*/
+
+void EqnListLambdaNormalize(Eqn_p list)
+{
+   if(list != NULL)
+   {
+      EqnListMapTerms(list, (TermMapper_p)LambdaNormalizeDB, list->bank);
+   }
+}
+
+/*-----------------------------------------------------------------------
+//
+// Function: EqnListFindCompLitExcept()
+//
+//   Try to find if there are literal complementary to y in xs
+//   (ignoring exc in it) and ys. Follow dereference as d_x and d_y.
+//
+// Global Variables: -
+//
+// Side Effects    : Sets the OpFlag of newly collected terms.
+//
+/----------------------------------------------------------------------*/
+
+bool EqnListFindCompLitExcept(Eqn_p xs, Eqn_p exc, Eqn_p y,
+                              DerefType d_x, DerefType d_y)
+{
+   bool res = false;
+   for(Eqn_p x = xs; !res && x; x = x->next)
+   {
+      if(x != exc && EqnIsPositive(x) != EqnIsPositive(y))
+      {
+         res = EqnEqualDeref(x, y, d_x, d_y);
+      }
    }
    return res;
 }
