@@ -1573,6 +1573,8 @@ void initRL(){
    char* reward_pipe_path = (reward_pipe_path = getenv("E_RL_REWARDPIPE_PATH")) ? reward_pipe_path : "/tmp/RewardPipe1";
 
    printf("State Pipe Path: %s\n", state_pipe_path);
+   printf("Action Pipe Path: %s\n", action_pipe_path);
+   printf("Reward Pipe Path: %s\n", reward_pipe_path);
 
    StatePipe = open(state_pipe_path, O_WRONLY);
    ActionPipe = open(action_pipe_path, O_RDONLY);
@@ -1623,7 +1625,6 @@ int recvRLAction(){
    // rlstate.queuePickCounts[action]++;
 
    // printf("----done\n");
-
 
    // int action = rand() % 75;
 
@@ -1722,9 +1723,7 @@ Clause_p ProcessClause(ProofState_p state, ProofControl_p control,
 
    if(!clause)
    {
-      if (not_in_presaturation_interreduction){
-         sendRLReward(0.0);
-      }
+      sendRLReward(0.0);
       printf("!clause\n");
       return NULL;
    }
@@ -1758,9 +1757,7 @@ Clause_p ProcessClause(ProofState_p state, ProofControl_p control,
       {
          ClauseSetDeleteEntry(arch_copy);
       }
-      if (not_in_presaturation_interreduction){
-         sendRLReward(0.0);
-      }
+      sendRLReward(0.0);
       printf("Subsumed I think!\n");
       return NULL;
    }
@@ -1775,9 +1772,7 @@ Clause_p ProcessClause(ProofState_p state, ProofControl_p control,
       {
          clause = FVUnpackClause(pclause);
          ClauseEvaluateAnswerLits(clause);
-         if (not_in_presaturation_interreduction){
-            sendRLReward(1.0);
-         }
+         sendRLReward(1.0);
          printf("ClauseIsSemFalse!\n");
          return clause;
       }
@@ -1794,14 +1789,10 @@ Clause_p ProcessClause(ProofState_p state, ProofControl_p control,
       if(resclause)
       {
          PStackPushP(state->extract_roots, resclause);
-         if (not_in_presaturation_interreduction){
-            sendRLReward(1.0);
-         }
+         sendRLReward(1.0);
       }
       else{
-         if (not_in_presaturation_interreduction){
-            sendRLReward(0.0);
-         }
+         sendRLReward(0.0);
       }
       
       return resclause;
@@ -1888,14 +1879,10 @@ Clause_p ProcessClause(ProofState_p state, ProofControl_p control,
    if((empty = insert_new_clauses(state, control)))
    {
       PStackPushP(state->extract_roots, empty);
-      if (not_in_presaturation_interreduction){
-         sendRLReward(1.0);
-      }
+      sendRLReward(1.0);
       return empty;
    }
-   if(not_in_presaturation_interreduction){
-      sendRLReward(0.0);
-   }
+   sendRLReward(0.0);
    return NULL;
 }
 
