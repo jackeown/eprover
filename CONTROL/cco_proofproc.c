@@ -1724,7 +1724,7 @@ Clause_p ProcessClause(ProofState_p state, ProofControl_p control,
          // then these should be equal...
          int epsilon = 1;
          if (abs(naive_sum - rlstate.unprocessedWeightSum) > epsilon){
-            printf("Weight tracking issue *sad reacts only* (%f != %f)\n", naive_sum, (float)rlstate.unprocessedWeightSum);
+            printf("Weight tracking issue *sad reacts only* (%ld != %ld)\n", naive_sum, rlstate.unprocessedWeightSum);
             // rlstate.unprocessedWeightSum = naive_sum;
          }
          else{
