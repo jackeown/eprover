@@ -35,6 +35,17 @@ Changes
 PERF_CTR_DEFINE(ParamodTimer);
 PERF_CTR_DEFINE(BWRWTimer);
 
+int StatePipe;
+int ActionPipe;
+int RewardPipe;
+RLProofStateCell rlstate;
+int sync_num;
+
+long long statePipeTimeSpent = 0;
+long long actionPipeTimeSpent = 0;
+long long rewardPipeTimeSpent = 0;
+long long statePrepTimeSpent = 0;
+
 
 /*---------------------------------------------------------------------*/
 /*                      Forward Declarations                           */
@@ -771,6 +782,7 @@ static Clause_p insert_new_clauses(ProofState_p state, ProofControl_p control)
       ClauseDelProp(handle, CPIsOriented);
       DocClauseQuoteDefault(6, handle, "eval");
 
+      rlstate.unprocessedWeightSum += handle->weight;
       ClauseSetInsert(state->unprocessed, handle);
    }
    return NULL;
@@ -968,6 +980,7 @@ Clause_p SATCheck(ProofState_p state, ProofControl_p control)
       //printf("# Cardinality of unprocessed: %ld\n",
       //        ClauseSetCardinality(state->unprocessed));
       base_time = GetTotalCPUTime();
+      printf("SATCHECK SATCHECK SATCHECK SATCHECK SATCHECK #########\n");
       empty = ForwardContractSetReweight(state, control, state->unprocessed,
                                        false, 2,
                                        &(state->proc_trivial_count));
@@ -1535,17 +1548,7 @@ void ProofStateInit(ProofState_p state, ProofControl_p control)
 
 
 
-int StatePipe;
-int ActionPipe;
-int RewardPipe;
-RLProofStateCell rlstate;
-int sync_num;
 
-long long statePipeTimeSpent = 0;
-long long actionPipeTimeSpent = 0;
-long long rewardPipeTimeSpent = 0;
-
-long long statePrepTimeSpent = 0;
 
 
 long long timeInMicroSeconds() {
@@ -1581,10 +1584,19 @@ void initRL(){
    RewardPipe = open(reward_pipe_path, O_WRONLY);
    sync_num = -1; // -1 because it is incremented in each call to sendRLState()
 
+
+   // Initialize rlstate
+   rlstate.numProcessed = 0;
+   rlstate.numUnprocessed = 0;
+   rlstate.processedWeightSum = 0;
+   rlstate.unprocessedWeightSum = 0;
+
 }
 
 void printRLState(RLProofStateCell state){
-   printf("RL State: (%ld, %ld, %f, %f)\n", state.numProcessed, state.numUnprocessed, state.processedAvgWeight, state.unprocessedAvgWeight);
+   float pweight = state.processedWeightSum / (float) state.numProcessed;
+   float uweight = state.unprocessedWeightSum / (float) state.numUnprocessed;
+   printf("RL State: (%ld, %ld, %f, %f)\n", state.numProcessed, state.numUnprocessed, pweight, uweight);
 }
 
 void sendRLState(RLProofStateCell state){
@@ -1597,8 +1609,11 @@ void sendRLState(RLProofStateCell state){
    write(StatePipe, &(state.numProcessed), sizeof(size_t));
    write(StatePipe, &(state.numUnprocessed), sizeof(size_t));
 
-   write(StatePipe, &(state.processedAvgWeight), sizeof(float));
-   write(StatePipe, &(state.unprocessedAvgWeight), sizeof(float));
+   float pweight = state.processedWeightSum / (float) state.numProcessed;
+   float uweight = state.unprocessedWeightSum / (float) state.numUnprocessed;
+
+   write(StatePipe, &pweight, sizeof(float));
+   write(StatePipe, &uweight, sizeof(float));
 
    timerEnd(start, &statePipeTimeSpent);
 }
@@ -1669,6 +1684,7 @@ Clause_p ProcessClause(ProofState_p state, ProofControl_p control,
    Clause_p         clause, resclause, tmp_copy, empty, arch_copy = NULL;
    FVPackedClause_p pclause;
    SysDate          clausedate;
+   static bool first_time = true;
 
 
    state->RLTimeSpent_statePipe = statePipeTimeSpent;
@@ -1684,22 +1700,35 @@ Clause_p ProcessClause(ProofState_p state, ProofControl_p control,
                         + ClauseSetCardinality(state->processed_non_units) \
                         + ClauseSetCardinality(state->processed_pos_eqns) \
                         + ClauseSetCardinality(state->processed_pos_rules);
-
-   long long total = 0;
-   total += ClauseSetStandardWeight(state->processed_neg_units);
-   total += ClauseSetStandardWeight(state->processed_non_units);
-   total += ClauseSetStandardWeight(state->processed_pos_eqns);
-   total += ClauseSetStandardWeight(state->processed_pos_rules);
-   if (rlstate.numProcessed)
-      rlstate.processedAvgWeight = total / (float) rlstate.numProcessed;
-   else
-      rlstate.processedAvgWeight = -1.0;
-
    rlstate.numUnprocessed = ClauseSetCardinality(state->unprocessed);
-   if (rlstate.numUnprocessed)
-      rlstate.unprocessedAvgWeight = ClauseSetStandardWeight(state->unprocessed) / (float) rlstate.numUnprocessed;
-   else
-      rlstate.unprocessedAvgWeight = -1.0;
+
+   rlstate.processedWeightSum = 0;
+   rlstate.processedWeightSum += ClauseSetStandardWeight(state->processed_neg_units);
+   rlstate.processedWeightSum += ClauseSetStandardWeight(state->processed_non_units);
+   rlstate.processedWeightSum += ClauseSetStandardWeight(state->processed_pos_eqns);
+   rlstate.processedWeightSum += ClauseSetStandardWeight(state->processed_pos_rules);
+
+   if(first_time && not_in_presaturation_interreduction){
+      first_time = false;
+      rlstate.unprocessedWeightSum = ClauseSetStandardWeight(state->unprocessed);
+   }
+   else if(not_in_presaturation_interreduction){
+      float naive_sum = -1.0;
+      if (rlstate.numUnprocessed){
+         naive_sum = ClauseSetStandardWeight(state->unprocessed);
+
+         // If all modifications to state->unprocessed have been properly tracked
+         // then these should be equal...
+         int epsilon = 1;
+         if (naive_sum - rlstate.unprocessedWeightSum < epsilon){
+            printf("Weight tracking issue *sad reacts only* (%f != %f)\n", naive_sum, rlstate.unprocessedWeightSum);
+            // rlstate.unprocessedWeightSum = naive_sum;
+         }
+         else{
+            printf("Average weight successfully tracked!\n");
+         }
+      }
+   }
 
    timerEnd(startTime, &statePrepTimeSpent);
 

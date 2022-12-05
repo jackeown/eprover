@@ -22,6 +22,7 @@
 
 
 #include "ccl_clausefunc.h"
+#include "che_proofcontrol.h"
 
 
 /*---------------------------------------------------------------------*/
@@ -604,6 +605,11 @@ long ClauseSetDeleteOrphans(ClauseSet_p set)
    {
       if(ClauseIsOrphaned(handle))
       {
+         // This only makes sense because ClauseSetDeleteOrphans
+         // is only ever called on state->unprocessed!!!
+         extern RLProofStateCell rlstate;
+
+         rlstate.unprocessedWeightSum -= handle->weight;
          ClauseSetProp(handle,CPDeleteClause);
       }
       else
