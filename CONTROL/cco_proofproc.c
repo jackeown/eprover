@@ -1596,6 +1596,7 @@ void initRL(){
 void printRLState(RLProofStateCell state){
    float pweight = (float)state.processedWeightSum / (float)state.numProcessed;
    float uweight = (float)state.unprocessedWeightSum / (float)state.numUnprocessed;
+   printf("uweight = sum / len: %f = %ld / %ld\n", uweight,state.unprocessedWeightSum, state.numUnprocessed);
    printf("RL State: (%ld, %ld, %f, %f)\n", state.numProcessed, state.numUnprocessed, pweight, uweight);
 }
 
