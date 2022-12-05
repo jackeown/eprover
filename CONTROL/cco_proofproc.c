@@ -1610,7 +1610,10 @@ void sendRLState(RLProofStateCell state){
    write(StatePipe, &(state.numUnprocessed), sizeof(size_t));
 
    float pweight = state.processedWeightSum / (float) state.numProcessed;
+   pweight = (state.numProcessed == 0) ? -1.0 : pweight;
+
    float uweight = state.unprocessedWeightSum / (float) state.numUnprocessed;
+   uweight = (state.numUnprocessed == 0) ? -1.0 : uweight;
 
    write(StatePipe, &pweight, sizeof(float));
    write(StatePipe, &uweight, sizeof(float));
