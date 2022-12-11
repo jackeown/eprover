@@ -1718,7 +1718,7 @@ void sendRLReward(float reward){
    if (reward == 1.0){
       printf("RL thinks proof is found!\n");
    }
-   // printf("RL Reward: %f\n", reward);
+   printf("RL Reward: %f\n", reward);
    timerEnd(start, &rewardPipeTimeSpent);
 }
 
@@ -1823,8 +1823,8 @@ Clause_p ProcessClause(ProofState_p state, ProofControl_p control,
    
    if (not_in_presaturation_interreduction){
       printRLState(rlstate);
-      // printf("CEF Choice: %d\n", action);
-      // printf("Given Clause: ");
+      printf("CEF Choice: %d\n", action);
+      printf("Given Clause: ");
       ClausePrint(stdout, clause, true);
    }
 
