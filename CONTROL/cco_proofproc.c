@@ -1629,7 +1629,7 @@ void checkWeightTracking(ProofState_p state, char* caption, int which){
                            ClauseSetStandardWeight(state->processed_pos_eqns) +
                            ClauseSetStandardWeight(state->processed_pos_rules);
       if (pWeight != rlstate.processedWeightSum){
-         printf("Processed tracking failure at %s: (%lld != %llu)\n", caption, pWeight, rlstate.unprocessedWeightSum);
+         printf("Processed tracking failure at %s: (%lld != %llu)\n", caption, pWeight, rlstate.processedWeightSum);
          exit(1);
       }
       else{
