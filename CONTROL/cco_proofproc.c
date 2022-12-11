@@ -358,15 +358,18 @@ static void eliminate_unit_simplified_clauses(ProofState_p state,
    {
       return;
    }
+
+   assert(rl_weight_tracking->members == 0);
+
    ClauseSetUnitSimplify(state->processed_non_units, clause,
-                         state->tmp_store,
+                         rl_weight_tracking,
                          state->archive,
                          &(state->gindices),
                          lambda_demod);
    if(ClauseIsPositive(clause))
    {
       ClauseSetUnitSimplify(state->processed_neg_units, clause,
-                            state->tmp_store,
+                            rl_weight_tracking,
                             state->archive,
                             &(state->gindices),
                            lambda_demod);
@@ -374,16 +377,26 @@ static void eliminate_unit_simplified_clauses(ProofState_p state,
    else
    {
       ClauseSetUnitSimplify(state->processed_pos_rules, clause,
-                            state->tmp_store,
+                            rl_weight_tracking,
                             state->archive,
                             &(state->gindices),
                            lambda_demod);
       ClauseSetUnitSimplify(state->processed_pos_eqns, clause,
-                            state->tmp_store,
+                            rl_weight_tracking,
                             state->archive,
                             &(state->gindices),
                            lambda_demod);
    }
+
+   Clause_p handle=rl_weight_tracking->anchor->succ;
+   while(rl_weight_tracking->members > 0){
+      Clause_p next = handle->succ;
+      rlstate.processedWeightSum -= (long long) ClauseStandardWeight(handle);
+      ClauseSetMoveClause(state->tmp_store, handle);
+      handle = next;
+   }
+
+
 }
 
 /*-----------------------------------------------------------------------
@@ -405,16 +418,29 @@ static long eliminate_context_sr_clauses(ProofState_p state,
                                          Clause_p clause,
                                          bool lambda_demod)
 {
+
+   assert(rl_weight_tracking->members == 0);
+
    if(!control->heuristic_parms.backward_context_sr)
    {
       return 0;
    }
-   return RemoveContextualSRClauses(state->processed_non_units,
-                                    state->tmp_store,
+   long numRemoved = RemoveContextualSRClauses(state->processed_non_units,
+                                    rl_weight_tracking,
                                     state->archive,
                                     clause,
                                     &(state->gindices),
                                     lambda_demod);
+
+   Clause_p handle=rl_weight_tracking->anchor->succ;
+   while(rl_weight_tracking->members > 0){
+      Clause_p next = handle->succ;
+      rlstate.processedWeightSum -= (long long) ClauseStandardWeight(handle);
+      ClauseSetMoveClause(state->tmp_store, handle);
+      handle = next;
+   }
+
+   return numRemoved;
 }
 
 /*-----------------------------------------------------------------------
@@ -1935,7 +1961,6 @@ Clause_p ProcessClause(ProofState_p state, ProofControl_p control,
 
    if(not_in_presaturation_interreduction) checkWeightTracking(state, "F3", trackingWhich);
 
-   // NOT TRACKING PROCESSED SET CHANGES HERE YET!!!! (MAKE SURE IT NEVER NEEDS TO BE TRACKED OVER MPTPTP2078)
    eliminate_unit_simplified_clauses(state, pclause->clause,
                                     control->heuristic_parms.lambda_demod);
 
