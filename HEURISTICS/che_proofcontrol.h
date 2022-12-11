@@ -51,6 +51,8 @@ typedef struct rlproofstate
    
    // size_t queuePickCounts[NUM_CEFs];
    // float queuePickWeightSum[NUM_CEFs];
+   
+   ProofState_p state;
 
 } RLProofStateCell, *RLProofState_p;
 
