@@ -1637,6 +1637,7 @@ void initRL(ProofState_p state){
 
 
    // Initialize rlstate
+   rlstate.numEverProcessed = 0;
    rlstate.numProcessed = 0;
    rlstate.numUnprocessed = 0;
    rlstate.processedWeightSum = 0;
@@ -1686,7 +1687,7 @@ void printRLState(RLProofStateCell state){
 
    // printf("uweight = sum / len: %f = %llu / %lu\n", uweight,state.unprocessedWeightSum, state.numUnprocessed);
    // printf("pweight = sum / len: %f = %llu / %lu\n", pweight,state.processedWeightSum, state.numProcessed);
-   printf("RL State: (%lu, %lu, %f, %f)\n", state.numProcessed, state.numUnprocessed, pweight, uweight);
+   printf("RL State: (%lu, %lu, %lu, %f, %f)\n", state.numEverProcessed, state.numProcessed, state.numUnprocessed, pweight, uweight);
 }
 
 void sendRLState(RLProofStateCell state){
@@ -1702,6 +1703,7 @@ void sendRLState(RLProofStateCell state){
    uweight = (isnan(uweight)) ? -1.0 : uweight;
 
    write(StatePipe, &(sync_num), sizeof(int));
+   write(StatePipe, &(state.numEverProcessed), sizeof(size_t));
    write(StatePipe, &(state.numProcessed), sizeof(size_t));
    write(StatePipe, &(state.numUnprocessed), sizeof(size_t));
    write(StatePipe, &pweight, sizeof(float));
@@ -1731,7 +1733,9 @@ int recvRLAction(){
    // int action = rand() % 20;
 
    timerEnd(start, &actionPipeTimeSpent);
+
    return action;
+   // return 3;
 }
 
 
@@ -1827,11 +1831,12 @@ Clause_p ProcessClause(ProofState_p state, ProofControl_p control,
       rlstate.unprocessedWeightSum = ClauseSetStandardWeight(state->unprocessed);
 
       printf("Initialized processed/unprocessed weights for tracking: (%llu, %llu)\n", rlstate.processedWeightSum, rlstate.unprocessedWeightSum);
-
+      rlstate.numEverProcessed += 1;
    }
    else if(not_in_presaturation_interreduction){
       // Comment for better performance, once you're sure there are no issues with the tracking...
       // checkWeightTracking(state, "MainCheck", trackingWhich);
+      rlstate.numEverProcessed += 1;
    }
 
    timerEnd(startTime, &statePrepTimeSpent);
@@ -1849,7 +1854,7 @@ Clause_p ProcessClause(ProofState_p state, ProofControl_p control,
    
    if (not_in_presaturation_interreduction){
       printRLState(rlstate);
-      printf("CEF Choice: %d\n", action);
+      printf("CEF Choice: %lu\n", action);
       printf("Given Clause: ");
       ClausePrint(stdout, clause, true);
    }

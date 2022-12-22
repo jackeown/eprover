@@ -40,6 +40,7 @@ Changes
 
 typedef struct rlproofstate 
 {
+   size_t numEverProcessed;
    size_t numProcessed;
    size_t numUnprocessed;
    
