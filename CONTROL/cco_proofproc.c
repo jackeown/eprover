@@ -1692,7 +1692,7 @@ void printRLState(RLProofStateCell state){
 
 void sendRLState(RLProofStateCell state){
    long long start = timerStart();
-   // printf("Sending RL State...\n");
+   printf("Sending RL State...\n");
    sync_num++;
 
 
@@ -1719,13 +1719,14 @@ int recvRLAction(){
    char buff[200];
 
    // printf("----Reading sync_num_remote\n");
-   read(ActionPipe, buff, sizeof(int));
+   int x = read(ActionPipe, buff, sizeof(int));
    int sync_num_remote = *((int*)buff);
 
    // printf("----Reading actual action\n");
    read(ActionPipe, buff, sizeof(int));
    int action = *((int*)buff);
-   
+   // printf("Action received: %d\n", action);
+
    // printf("----assertion\n");
    assert(sync_num_remote == sync_num);
    assert(action >= 0 && action < 20);
@@ -1798,6 +1799,9 @@ Clause_p customized_hcb_select(HCB_p hcb, ClauseSet_p set)
 Clause_p ProcessClause(ProofState_p state, ProofControl_p control,
                        long answer_limit)
 {
+
+
+   // printf("Number of CEFs: %d\n", control->hcb->wfcb_no);
    Clause_p         clause, resclause, tmp_copy, empty, arch_copy = NULL;
    FVPackedClause_p pclause;
    SysDate          clausedate;
