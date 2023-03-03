@@ -127,6 +127,7 @@ Clause_p clause_copy_meta(Clause_p clause)
    handle->proof_size  = clause->proof_size;
    handle->pred        = NULL;
    handle->succ        = NULL;
+   handle->given_clause_selection_index = clause->given_clause_selection_index;
 
    return handle;
 }
@@ -269,6 +270,7 @@ Clause_p EmptyClauseAlloc(void)
    handle->set         = NULL;
    handle->pred        = NULL;
    handle->succ        = NULL;
+   handle->given_clause_selection_index = -1;
 
    return handle;
 }

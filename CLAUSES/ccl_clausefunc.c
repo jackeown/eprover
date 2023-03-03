@@ -649,6 +649,7 @@ void PStackClausePrint(FILE* out, PStack_p stack, char* extra)
       if(extra)
       {
          fprintf(out, "%s", extra);
+         fprintf(out, " %ld", clause->given_clause_selection_index);
       }
       fputc('\n', out);
    }
