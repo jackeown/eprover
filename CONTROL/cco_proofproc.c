@@ -1856,13 +1856,13 @@ Clause_p ProcessClause(ProofState_p state, ProofControl_p control,
    //                                   state->unprocessed);
    clause = customized_hcb_select(control->hcb, state->unprocessed);
    clause->given_clause_selection_index = rlstate.numEverProcessed-1;
-   printf("\nSet given_clause_selection_index to %d\n", clause->given_clause_selection_index);
    
    if (not_in_presaturation_interreduction){
       printRLState(rlstate);
       printf("CEF Choice: %lu\n", action);
       printf("Given Clause: ");
       ClausePrint(stdout, clause, true);
+      printf("\nSet given_clause_selection_index to %d\n", clause->given_clause_selection_index);
    }
 
    // if(not_in_presaturation_interreduction) checkWeightTracking(state, "A", trackingWhich);
@@ -1897,6 +1897,7 @@ Clause_p ProcessClause(ProofState_p state, ProofControl_p control,
 
    if(ProofObjectRecordsGCSelection)
    {
+      printf("\nArchiving clause...\n");
       arch_copy = ClauseArchiveCopy(state->archive, clause);
    }
 
@@ -1977,7 +1978,6 @@ Clause_p ProcessClause(ProofState_p state, ProofControl_p control,
 
    // if(not_in_presaturation_interreduction) checkWeightTracking(state, "F4", trackingWhich);
 
-   // NOT TRACKING PROCESSED SET CHANGES HERE YET!!!! (MAKE SURE IT NEVER NEEDS TO BE TRACKED OVER MPTPTP2078)
    eliminate_context_sr_clauses(state, control, pclause->clause,
                                 control->heuristic_parms.lambda_demod);
 
