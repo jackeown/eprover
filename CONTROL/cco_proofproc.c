@@ -1903,7 +1903,9 @@ Clause_p ProcessClause(ProofState_p state, ProofControl_p control,
       printf("\nArchiving clause...\n");
       printf("Before: %d\n", clause->given_clause_selection_index);
       arch_copy = ClauseArchiveCopy(state->archive, clause);
-      printf("After: %d\n", arch_copy->given_clause_selection_index);
+      // printf("After: %d\n", arch_copy->given_clause_selection_index);
+      ClausePrint(stdout, state->archive->anchor->pred, true);
+      printf("After: %d\n", state->archive->anchor->pred->given_clause_selection_index);
    }
 
    if(!(pclause = ForwardContractClause(state, control,
