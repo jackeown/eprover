@@ -1856,6 +1856,7 @@ Clause_p ProcessClause(ProofState_p state, ProofControl_p control,
    //                                   state->unprocessed);
    clause = customized_hcb_select(control->hcb, state->unprocessed);
    clause->given_clause_selection_index = rlstate.numEverProcessed-1;
+   printf("\nSet given_clause_selection_index to %d\n", clause->given_clause_selection_index);
    
    if (not_in_presaturation_interreduction){
       printRLState(rlstate);
