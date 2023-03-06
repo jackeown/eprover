@@ -532,16 +532,16 @@ void ProofStatePickTrainingExamples(ProofState_p state,
                                     PStack_p pos_examples,
                                     PStack_p neg_examples)
 {
-   clause_set_pick_training_examples(state->ax_archive, pos_examples,
-                                     neg_examples);
-   clause_set_pick_training_examples(state->processed_pos_rules,
-                                     pos_examples, neg_examples);
-   clause_set_pick_training_examples(state->processed_pos_eqns,
-                                     pos_examples, neg_examples);
-   clause_set_pick_training_examples(state->processed_neg_units,
-                                     pos_examples, neg_examples);
-   clause_set_pick_training_examples(state->processed_non_units,
-                                     pos_examples, neg_examples);
+//    clause_set_pick_training_examples(state->ax_archive, pos_examples,
+//                                      neg_examples);
+//    clause_set_pick_training_examples(state->processed_pos_rules,
+//                                      pos_examples, neg_examples);
+//    clause_set_pick_training_examples(state->processed_pos_eqns,
+//                                      pos_examples, neg_examples);
+//    clause_set_pick_training_examples(state->processed_neg_units,
+//                                      pos_examples, neg_examples);
+//    clause_set_pick_training_examples(state->processed_non_units,
+//                                      pos_examples, neg_examples);
    clause_set_pick_training_examples(state->archive,
                                      pos_examples, neg_examples);
 }
