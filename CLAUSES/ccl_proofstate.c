@@ -544,6 +544,15 @@ void ProofStatePickTrainingExamples(ProofState_p state,
                                      pos_examples, neg_examples);
    clause_set_pick_training_examples(state->archive,
                                      pos_examples, neg_examples);
+
+
+
+   printf("######################################\n");
+   for(Clause_p handle=state->archive->anchor->succ; handle != state->archive->anchor; handle=handle->succ){
+      ClausePrint(GlobalOut, handle, true);
+      printf(" %ld\n", handle->given_clause_selection_index);
+   }
+   printf("######################################\n");
 }
 
 
