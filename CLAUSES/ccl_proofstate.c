@@ -547,6 +547,7 @@ void ProofStatePickTrainingExamples(ProofState_p state,
 
 
 
+   printf("PROOF STATE PICK TRAINING EXAMPLES >>>\n");
    printf("######################################\n");
    for(Clause_p handle=state->archive->anchor->succ; handle != state->archive->anchor; handle=handle->succ){
       ClausePrint(GlobalOut, handle, true);
