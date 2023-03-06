@@ -1855,6 +1855,7 @@ Clause_p ProcessClause(ProofState_p state, ProofControl_p control,
    // clause = control->hcb->hcb_select(control->hcb,
    //                                   state->unprocessed);
    clause = customized_hcb_select(control->hcb, state->unprocessed);
+   printf("Way before: %ld\n", clause->given_clause_selection_index);
    if (not_in_presaturation_interreduction)
       clause->given_clause_selection_index = rlstate.numEverProcessed-1;
    else
