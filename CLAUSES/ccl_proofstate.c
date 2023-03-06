@@ -542,8 +542,8 @@ void ProofStatePickTrainingExamples(ProofState_p state,
                                      pos_examples, neg_examples);
    clause_set_pick_training_examples(state->processed_non_units,
                                      pos_examples, neg_examples);
-//    clause_set_pick_training_examples(state->archive,
-//                                      pos_examples, neg_examples);
+   clause_set_pick_training_examples(state->archive,
+                                     pos_examples, neg_examples);
 }
 
 
