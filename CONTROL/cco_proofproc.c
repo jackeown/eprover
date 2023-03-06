@@ -1782,6 +1782,20 @@ Clause_p customized_hcb_select(HCB_p hcb, ClauseSet_p set)
 
 
 
+
+void PrintArchive(ProofState_p state){
+
+   printf("######################################\n");
+   for(Clause_p handle=state->archive->anchor->succ; handle != state->archive->anchor; handle=handle->succ){
+      ClausePrint(GlobalOut, handle, true);
+      printf(" %ld\n", handle->given_clause_selection_index);
+   }
+   printf("######################################\n");
+
+}
+
+
+
 /*-----------------------------------------------------------------------
 //
 // Function: ProcessClause()
@@ -1907,6 +1921,7 @@ Clause_p ProcessClause(ProofState_p state, ProofControl_p control,
       // printf("After: %d\n", arch_copy->given_clause_selection_index);
       ClausePrint(stdout, state->archive->anchor->pred, true);
       printf("After: %d\n", state->archive->anchor->pred->given_clause_selection_index);
+      PrintArchive(state);
    }
 
    if(!(pclause = ForwardContractClause(state, control,
