@@ -554,7 +554,6 @@ void ProofStatePickTrainingExamples(ProofState_p state,
       printf(" %ld ", handle->given_clause_selection_index);
       printf(" %d ", ClauseIsEvalGC(handle));
       printf(" %d \n", ClauseQueryProp(handle, CPIsProofClause));
-
    }
    printf("######################################\n");
 }

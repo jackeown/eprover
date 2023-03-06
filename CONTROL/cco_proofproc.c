@@ -1791,7 +1791,6 @@ void PrintArchive(ProofState_p state){
       printf(" %ld ", handle->given_clause_selection_index);
       printf(" %d ", ClauseIsEvalGC(handle));
       printf(" %d \n", ClauseQueryProp(handle, CPIsProofClause));
-
    }
    printf("######################################\n");
 
@@ -1924,7 +1923,7 @@ Clause_p ProcessClause(ProofState_p state, ProofControl_p control,
       // printf("After: %d\n", arch_copy->given_clause_selection_index);
       ClausePrint(stdout, state->archive->anchor->pred, true);
       printf("After: %d\n", state->archive->anchor->pred->given_clause_selection_index);
-      PrintArchive(state);
+      // PrintArchive(state);
    }
 
    if(!(pclause = ForwardContractClause(state, control,
