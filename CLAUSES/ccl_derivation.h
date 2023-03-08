@@ -256,6 +256,7 @@ void WFormulaPushDerivation(WFormula_p form, DerivationCode op,
                             void* arg1, void* arg2);
 
 bool ClauseIsEvalGC(Clause_p clause);
+bool ClauseHasEvalGC(Clause_p clause);
 
 bool ClauseIsDummyQuote(Clause_p clause);
 Clause_p ClauseDerivFindFirst(Clause_p clause);

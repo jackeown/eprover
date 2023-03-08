@@ -673,6 +673,22 @@ bool ClauseIsEvalGC(Clause_p clause)
 }
 
 
+bool ClauseHasEvalGC(Clause_p clause)
+{
+   if(clause->derivation)
+   {
+      for(int i=0; i<clause->derivation->current; i++){
+         if(PStackElementInt(clause->derivation, i) == DCCnfEvalGC){
+            return true;
+         }
+      }
+
+      return false;
+   }
+
+   return false;
+}
+
 
 /*-----------------------------------------------------------------------
 //
