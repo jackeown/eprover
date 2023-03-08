@@ -552,6 +552,7 @@ void ProofStatePickTrainingExamples(ProofState_p state,
    for(Clause_p handle=state->archive->anchor->succ; handle != state->archive->anchor; handle=handle->succ){
       ClausePrint(GlobalOut, handle, true);
       printf(" %ld ", handle->given_clause_selection_index);
+      printf(" %d ", ClauseIsEvalGC(handle));
       printf(" %d ", ClauseHasEvalGC(handle));
       printf(" %d \n", ClauseQueryProp(handle, CPIsProofClause));
    }
