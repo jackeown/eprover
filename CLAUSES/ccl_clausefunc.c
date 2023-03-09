@@ -630,7 +630,7 @@ long getGivenClauseSelectionIndex(Clause_p clause){
       return clause->given_clause_selection_index;
    }
 
-
+   extern RLProofStateCell rlstate;
    ProofState_p state = rlstate.state;
    ClauseSet_p sets[5] = {state->ax_archive, state->processed_pos_rules, state->processed_pos_eqns, state->processed_neg_units, state->processed_non_units, state->archive};
 
