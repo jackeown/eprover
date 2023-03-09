@@ -635,6 +635,7 @@ long getGivenClauseSelectionIndex(Clause_p clause){
    ClauseSet_p sets[6] = {state->ax_archive, state->processed_pos_rules, state->processed_pos_eqns, state->processed_neg_units, state->processed_non_units, state->archive};
 
    for (int i=0; i<6; i++){
+      printf("Searching through set %d\n", i);
       Clause_p anchor = sets[i]->anchor;
       for (Clause_p handle=anchor->succ; handle != NULL && handle != anchor; handle = handle->succ){
          bool matches = (ClauseCmpByPtr(clause, handle) || ClauseCmpById(clause, handle) || ClauseCompareFun(clause, handle));
