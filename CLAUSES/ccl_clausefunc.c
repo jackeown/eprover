@@ -632,9 +632,9 @@ long getGivenClauseSelectionIndex(Clause_p clause){
 
    extern RLProofStateCell rlstate;
    ProofState_p state = rlstate.state;
-   ClauseSet_p sets[5] = {state->ax_archive, state->processed_pos_rules, state->processed_pos_eqns, state->processed_neg_units, state->processed_non_units, state->archive};
+   ClauseSet_p sets[6] = {state->ax_archive, state->processed_pos_rules, state->processed_pos_eqns, state->processed_neg_units, state->processed_non_units, state->archive};
 
-   for (int i=0; i<5; i++){
+   for (int i=0; i<6; i++){
       Clause_p anchor = sets[i]->anchor;
       for (Clause_p handle=anchor->succ; handle != anchor; handle = handle->succ){
          bool matches = (ClauseCmpByPtr(clause, handle) || ClauseCmpById(clause, handle) || ClauseCompareFun(clause, handle));
