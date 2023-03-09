@@ -635,14 +635,9 @@ long getGivenClauseSelectionIndex(Clause_p clause){
    ClauseSet_p sets[6] = {state->ax_archive, state->processed_pos_rules, state->processed_pos_eqns, state->processed_neg_units, state->processed_non_units, state->archive};
 
    for (int i=0; i<6; i++){
-      printf("Searching through set %d\n", i);
       Clause_p anchor = sets[i]->anchor;
       for (Clause_p handle=anchor->succ; handle != anchor; handle = handle->succ){
          
-         // bool matches = ((ClauseCmpByPtr(clause, handle) == 0) || 
-         //    (ClauseCmpById(clause, handle) == 0) || 
-         //    (ClauseCompareFun(clause, handle) == 0));
-
          bool matches = (ClauseCompareFun(clause, handle) == 0);
          if (matches && handle->given_clause_selection_index >= 0){
             return handle->given_clause_selection_index;
@@ -679,7 +674,7 @@ void PStackClausePrint(FILE* out, PStack_p stack, char* extra)
       if(extra)
       {
          fprintf(out, "%s", extra);
-         fprintf(out, " %ld", clause->given_clause_selection_index);
+         // fprintf(out, " %ld", clause->given_clause_selection_index);
          fprintf(out, " %ld", getGivenClauseSelectionIndex(clause));
       }
       fputc('\n', out);
