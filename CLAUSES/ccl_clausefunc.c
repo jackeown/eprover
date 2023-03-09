@@ -636,7 +636,7 @@ long getGivenClauseSelectionIndex(Clause_p clause){
 
    for (int i=0; i<6; i++){
       Clause_p anchor = sets[i]->anchor;
-      for (Clause_p handle=anchor->succ; handle != anchor; handle = handle->succ){
+      for (Clause_p handle=anchor->succ; handle != NULL && handle != anchor; handle = handle->succ){
          bool matches = (ClauseCmpByPtr(clause, handle) || ClauseCmpById(clause, handle) || ClauseCompareFun(clause, handle));
          if (matches && handle->given_clause_selection_index >= 0){
             return handle->given_clause_selection_index;
