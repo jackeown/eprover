@@ -640,6 +640,39 @@ long getGivenClauseSelectionIndex(Clause_p clause){
          
          bool matches = (ClauseCompareFun(clause, handle) == 0);
          if (matches && handle->given_clause_selection_index >= 0){
+            printf("Derivation: %d\n", PStackTopInt(handle->derivation));
+            return handle->given_clause_selection_index;
+         }
+      }
+   }
+
+   return clause->given_clause_selection_index;
+}
+
+
+
+// bool ClauseIsAncestor(Clause_p potential_ancestor, Clause_p clause){
+//    Clause_p handle = clause;
+//    while(handle->derivation && PStackTopInt(handle->derivation)==){
+
+//    }
+// }
+
+
+long getGivenClauseSelectionIndex2ElectricBoogaloo(Clause_p clause){
+   if (clause->given_clause_selection_index >= 0){
+      return clause->given_clause_selection_index;
+   }
+
+   extern RLProofStateCell rlstate;
+   ProofState_p state = rlstate.state;
+   ClauseSet_p sets[6] = {state->ax_archive, state->processed_pos_rules, state->processed_pos_eqns, state->processed_neg_units, state->processed_non_units, state->archive};
+
+   for (int i=0; i<6; i++){
+      Clause_p anchor = sets[i]->anchor;
+      for (Clause_p handle=anchor->succ; handle != anchor; handle = handle->succ){
+         bool matches = (ClauseCompareFun(clause, handle) == 0);
+         if (matches && handle->given_clause_selection_index >= 0){
             return handle->given_clause_selection_index;
          }
       }
