@@ -638,7 +638,11 @@ long getGivenClauseSelectionIndex(Clause_p clause){
       printf("Searching through set %d\n", i);
       Clause_p anchor = sets[i]->anchor;
       for (Clause_p handle=anchor->succ; handle != NULL && handle != anchor; handle = handle->succ){
-         bool matches = (ClauseCmpByPtr(clause, handle) || ClauseCmpById(clause, handle) || ClauseCompareFun(clause, handle));
+         
+         bool matches = ((ClauseCmpByPtr(clause, handle) == 0) || 
+            (ClauseCmpById(clause, handle) == 0) || 
+            (ClauseCompareFun(clause, handle) == 0));
+
          if (matches && handle->given_clause_selection_index >= 0){
             return handle->given_clause_selection_index;
          }
