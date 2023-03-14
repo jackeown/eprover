@@ -640,7 +640,7 @@ long getGivenClauseSelectionIndex(Clause_p clause){
          
          bool matches = (ClauseCompareFun(clause, handle) == 0);
          if (matches && handle->given_clause_selection_index >= 0){
-            printf("Derivation: %d\n", PStackTopInt(handle->derivation));
+            // printf("Derivation: %d\n", PStackTopInt(handle->derivation));
             return handle->given_clause_selection_index;
          }
       }
