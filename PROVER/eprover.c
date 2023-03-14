@@ -112,7 +112,6 @@ double             clausification_time_part=0.02;
 
 FunctionProperties free_symb_prop = FPIgnoreProps;
 
-ProblemType problemType  = PROBLEM_NOT_INIT;
 
 /*---------------------------------------------------------------------*/
 /*                      Forward Declarations                           */
@@ -187,6 +186,10 @@ ProofState_p parse_spec(CLState_p state,
    StrTree_p skip_includes = NULL;
    long parsed_ax_no;
 
+   if(state->argc ==  0)
+   {
+      CLStateInsertArg(state, "-");
+   }
    proofstate = ProofStateAlloc(free_symb_prop_local);
    for(i=0; state->argv[i]; i++)
    {
@@ -204,15 +207,12 @@ ProofState_p parse_spec(CLState_p state,
       {
          DocOutputFormat = pcl_format;
       }
-
       FormulaAndClauseSetParse(in,
                                proofstate->f_axioms,
                                proofstate->watchlist,
                                proofstate->terms,
                                NULL,
                                &skip_includes);
-      // exit(-1);
-      //printf("Set complete\n");
       CheckInpTok(in, NoToken);
       DestroyScanner(in);
    }
@@ -262,6 +262,103 @@ static void print_info(void)
       fflush(GlobalOut);
    }
 }
+
+
+/*-----------------------------------------------------------------------
+//
+// Function: strategy_io()
+//
+//   Write and/or read the search strategy parameters. Moved here to
+//   declutter main.
+//
+// Global Variables: hparms
+//
+// Side Effects    : I/O, may change h_parms, may terminate the
+//                   program (if print_strategy is set).
+//
+/----------------------------------------------------------------------*/
+
+void strategy_io(HeuristicParms_p h_parms, PStack_p hcb_definitions)
+{
+   if(print_strategy)
+   {
+      HeuristicParmsPrint(stdout, h_parms);
+      exit(NO_ERROR);
+   }
+
+   if(parse_strategy_filename)
+   {
+      Scanner_p in = CreateScanner(StreamTypeFile, parse_strategy_filename,
+                                   true, NULL, true);
+      HeuristicParmsParseInto(in,h_parms,true);
+      if(h_parms->heuristic_def)
+      {
+         PStackPushP(hcb_definitions, h_parms->heuristic_def);
+      }
+      DestroyScanner(in);
+   }
+}
+
+
+/*-----------------------------------------------------------------------
+//
+// Function: handle_auto_mode_preproc()
+//
+//   Handle (raw) classification and preprocessing scheduling for
+//   auto-mode and auto-schedule mode. Moved here to declutter
+//   main().
+//
+// Global Variables: print_rusage, num_cpus, serialize_schedule
+//
+// Side Effects    : Runs the raw classifier, runs the high-level
+//                   scheduler, sets the preprocessing schedule.
+//
+/----------------------------------------------------------------------*/
+
+int handle_auto_modes_preproc(ProofState_p proofstate,
+                              HeuristicParms_p h_parms,
+                              Schedule_p *preproc_schedule,
+                              SpecLimits_p *limits,
+                              RawSpecFeature_p raw_features,
+                              rlim_t wc_sched_limit)
+{
+   int sched_idx = -1;
+
+   *limits = CreateDefaultSpecLimits();
+
+   RawSpecFeaturesCompute(raw_features, proofstate);
+   RawSpecFeaturesClassify(raw_features, *limits, RAW_DEFAULT_MASK);
+   *preproc_schedule = GetPreprocessingSchedule(raw_features->class);
+   fprintf(stdout, "# Preprocessing class: %s.\n", raw_features->class);
+   if(strategy_scheduling)
+   {
+      sched_idx = ExecuteScheduleMultiCore(*preproc_schedule, h_parms,
+                                           print_rusage,
+                                           wc_sched_limit,
+                                           true,
+                                           num_cpus,
+                                           serialize_schedule||(num_cpus==1));
+      if (sched_idx != SCHEDULE_DONE)
+      {
+         char* preproc_conf_name = h_parms->heuristic_name;
+         GetHeuristicWithName(preproc_conf_name, h_parms);
+      }
+      else
+      {
+         TSTPOUT(GlobalOut, "GaveUp");
+         exit(RESOURCE_OUT);
+      }
+   }
+   else
+   {
+      assert(auto_conf);
+      GetHeuristicWithName((*preproc_schedule)->heu_name, h_parms);
+      fprintf(stdout, "# Configuration: %s\n", (*preproc_schedule)->heu_name);
+   }
+   return sched_idx;
+}
+
+
 
 /*-----------------------------------------------------------------------
 //
@@ -424,9 +521,12 @@ int main(int argc, char* argv[])
       relevancy_pruned = 0;
    double           preproc_time;
    SpecLimits_p limits = NULL;
-   Derivation_p deriv;
+   RawSpecFeatureCell raw_features;
    SpecFeatureCell features;
-
+   int sched_idx;
+   Schedule_p preproc_schedule = NULL;
+   rlim_t wc_sched_limit;
+   Derivation_p deriv;
 
    assert(argv[0]);
 
@@ -434,11 +534,11 @@ int main(int argc, char* argv[])
    INCREASE_STACK_SIZE;
 #endif
 
-   pid = getpid();
    InitIO(NAME);
+   pid = getpid();
+   setpgid(0, 0);
 
    ESignalSetup(SIGXCPU);
-   setpgid(0, 0);
 
    h_parms = HeuristicParmsAlloc();
    fvi_parms = FVIndexParmsAlloc();
@@ -448,28 +548,10 @@ int main(int argc, char* argv[])
    state = process_options(argc, argv);
 
    OpenGlobalOut(outname);
+
    print_info();
-   if(print_strategy)
-   {
-      HeuristicParmsPrint(stdout, h_parms);
-      exit(NO_ERROR);
-   }
 
-   if(parse_strategy_filename)
-   {
-      Scanner_p in = CreateScanner(StreamTypeFile, parse_strategy_filename, true, NULL, true);
-      HeuristicParmsParseInto(in,h_parms,true);
-      if(h_parms->heuristic_def)
-      {
-         PStackPushP(hcb_definitions, h_parms->heuristic_def);
-      }
-      DestroyScanner(in);
-   }
-
-   if(state->argc ==  0)
-   {
-      CLStateInsertArg(state, "-");
-   }
+//   strategy_io(h_parms, hcb_definitions);
 
    proofstate = parse_spec(state, parse_format,
                            error_on_empty, free_symb_prop,
@@ -482,53 +564,27 @@ int main(int argc, char* argv[])
       goto cleanup1;
    }
 
-   int sched_idx = -1;
-   Schedule_p preproc_schedule = NULL;
-   RawSpecFeatureCell raw_features;
-   rlim_t wc_sched_limit =
-      ScheduleTimeLimit ? ScheduleTimeLimit : DEFAULT_SCHED_TIME_LIMIT;
+   wc_sched_limit = ScheduleTimeLimit ? ScheduleTimeLimit : DEFAULT_SCHED_TIME_LIMIT;
    if(auto_conf || strategy_scheduling)
    {
-      limits = CreateDefaultSpecLimits();
-
-      RawSpecFeaturesCompute(&raw_features, proofstate);
-      RawSpecFeaturesClassify(&raw_features, limits, RAW_DEFAULT_MASK);
-      preproc_schedule = GetPreprocessingSchedule(raw_features.class);
-      fprintf(stdout, "# Preprocessing class: %s.\n", raw_features.class);
-      if(strategy_scheduling)
-      {
-         sched_idx = ExecuteScheduleMultiCore(preproc_schedule, h_parms, print_rusage,
-                                             wc_sched_limit, true,
-                                             num_cpus, serialize_schedule);
-         if (sched_idx != SCHEDULE_DONE)
-         {
-            char* preproc_conf_name = h_parms->heuristic_name;
-            GetHeuristicWithName(preproc_conf_name, h_parms);
-         }
-         else
-         {
-            TSTPOUT(GlobalOut, "GaveUp");
-            exit(RESOURCE_OUT);
-         }
-      }
-      else
-      {
-         assert(auto_conf);
-         GetHeuristicWithName(preproc_schedule->heu_name, h_parms);
-         fprintf(stderr, "# Configuration: %s\n", preproc_schedule->heu_name);
-      }
+      sched_idx = handle_auto_modes_preproc(proofstate,
+                                            h_parms,
+                                            &preproc_schedule,
+                                            &limits,
+                                            &raw_features,
+                                            wc_sched_limit);
       CLStateFree(state);
-      state = process_options(argc, argv); // refilling the h_parms with user options
+      state = process_options(argc, argv); // refilling the h_parms
+                                           // with manual user options
    }
 
-
 #ifndef NDEBUG
-      fprintf(stderr, "(lift_lambdas = %d, lambda_to_forall = %d,"
-                      "unroll_only_formulas = %d, sine = %s)\n",
-                      h_parms->lift_lambdas,
-                      h_parms->lambda_to_forall,
-                      h_parms->unroll_only_formulas,
-                      h_parms->sine);
+   fprintf(stdout, "# (lift_lambdas = %d, lambda_to_forall = %d,"
+           "unroll_only_formulas = %d, sine = %s)\n",
+           h_parms->lift_lambdas,
+           h_parms->lambda_to_forall,
+           h_parms->unroll_only_formulas,
+           h_parms->sine);
 #endif
 
    relevancy_pruned += ProofStateSinE(proofstate, h_parms->sine);
@@ -719,7 +775,7 @@ int main(int argc, char* argv[])
          // executing the first one from the schedule.
          char* conf_name = GetSearchSchedule(class)->heu_name;
          GetHeuristicWithName(conf_name, h_parms);
-         fprintf(stderr, "# Configuration: %s\n", conf_name);
+         fprintf(stdout, "# Configuration: %s\n", conf_name);
          h_parms->inst_choice_max_depth = choice_max_depth;
       }
       FREE(class);
@@ -1346,7 +1402,14 @@ CLState_p process_options(int argc, char* argv[])
       case OPT_AUTO_SCHED:
             if(!strategy_scheduling)
             {
-               num_cpus = CLStateGetIntArg(handle, arg);
+               if(strcmp(arg, "Auto")==0)
+               {
+                  num_cpus = -1;
+               }
+               else
+               {
+                  num_cpus = CLStateGetIntArg(handle, arg);
+               }
                h_parms->sine = SecureStrdup("Auto");
                strategy_scheduling = true;
             }
@@ -1360,7 +1423,14 @@ CLState_p process_options(int argc, char* argv[])
       case OPT_SATAUTO_SCHED:
             if(!strategy_scheduling)
             {
-               num_cpus = CLStateGetIntArg(handle, arg);
+               if(strcmp(arg, "Auto")==0)
+               {
+                  num_cpus = -1;
+               }
+               else
+               {
+                  num_cpus = CLStateGetIntArg(handle, arg);
+               }
                strategy_scheduling = true;
             }
             break;
@@ -2134,6 +2204,10 @@ CLState_p process_options(int argc, char* argv[])
             assert(false && "Unknown option");
             break;
       }
+   }
+   if(num_cpus == -1)
+   {
+      num_cpus = GetCoreNumber();
    }
    if(!PStackEmpty(hcb_definitions))
    {

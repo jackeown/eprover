@@ -477,7 +477,8 @@ PTree_p create_sym_map(FormulaSet_p set, IntMap_p sym_def_map, bool unfold_only_
       for (long i = 0; i < PStackGetSP(bvars); i++)
       {
          Type_p ty = ((Term_p)PStackElementP(bvars, i))->type;
-         PStackAssignP(bvars, i, VarBankGetFreshVar(bank->vars, ty));
+         Term_p tmp = VarBankGetFreshVar(bank->vars, ty);
+         PStackAssignP(bvars, i, tmp);
       }
       lhs_body = BetaNormalizeDB(bank, ApplyTerms(bank, lhs, bvars));
       Term_p rhs_applied = BetaNormalizeDB(bank, ApplyTerms(bank, rhs, bvars));
@@ -1403,6 +1404,7 @@ long WFormulaCNF2(WFormula_p form, ClauseSet_p set,
                   long miniscope_limit,
                   bool fool_unroll)
 {
+   DBGTermCheckUnownedSubterm(stdout, form->tformula, "WFormulaCNF2_0");
    form->tformula = LambdaNormalizeDB(terms, form->tformula);
    if (form->is_clause)
    {
@@ -1582,8 +1584,7 @@ long FormulaSetCNF2(FormulaSet_p set, FormulaSet_p archive,
    while (!FormulaSetEmpty(set))
    {
       handle = FormulaSetExtractFirst(set);
-      //WFormulaPrint(stdout, handle, true);
-      //fprintf(stdout, "\n");
+      DBGTermCheckUnownedSubterm(stdout, handle->tformula, "UnownedCNF");
       form = WFormulaFlatCopy(handle);
       FormulaSetInsert(archive, handle);
       WFormulaPushDerivation(form, DCFofQuote, handle, NULL);
@@ -1637,17 +1638,17 @@ long FormulaAndClauseSetParse(Scanner_p in, FormulaSet_p fset,
    Clause_p clause, nextclause;
    StrTree_p stand_in = NULL;
 
-   if (!name_selector)
+   if(!name_selector)
    {
       name_selector = &stand_in;
    }
 
-   switch (ScannerGetFormat(in))
+   switch(ScannerGetFormat(in))
    {
    case LOPFormat:
       //* LOP does not at the moment support full FOF, or inline watchlists */
       SetProblemType(PROBLEM_FO);
-      while (ClauseStartsMaybe(in))
+      while(ClauseStartsMaybe(in))
       {
          form = WFormClauseParse(in, terms);
          // fprintf(stdout, "Parsed: ");
@@ -1659,99 +1660,101 @@ long FormulaAndClauseSetParse(Scanner_p in, FormulaSet_p fset,
       break;
    default:
 #ifndef ENABLE_LFHO
-      if (TestInpId(in, "thf"))
-      {
-         Error("To support HOL reasoning, recompile E"
-               " using \'./configure --enable-ho && make rebuild\' \n",
-               SYNTAX_ERROR);
-      }
+         if(TestInpId(in, "thf"))
+         {
+            Error("To support HOL reasoning, recompile E"
+                  " using \'./configure --enable-ho && make rebuild\' \n",
+                  SYNTAX_ERROR);
+         }
 #endif
-      while (TestInpId(in, "input_formula|input_clause|fof|cnf|tff|thf|tcf|include"))
-      {
-         if (TestInpId(in, "include"))
+         while(TestInpId(in, "input_formula|input_clause|fof|cnf|tff|thf|tcf|include"))
          {
-            if (app_encode)
+            if(TestInpId(in, "include"))
             {
-               ignore_include(in);
-               continue;
-            }
+               if (app_encode)
+               {
+                  ignore_include(in);
+                  continue;
+               }
 
-            StrTree_p new_limit = NULL;
-            Scanner_p new_in;
-            FormulaSet_p nfset = FormulaSetAlloc();
-            ClauseSet_p nwlset = ClauseSetAlloc();
-            new_in = ScannerParseInclude(in, &new_limit, skip_includes);
+               StrTree_p new_limit = NULL;
+               Scanner_p new_in;
+               FormulaSet_p nfset = FormulaSetAlloc();
+               ClauseSet_p nwlset = ClauseSetAlloc();
+               new_in = ScannerParseInclude(in, &new_limit, skip_includes);
 
-            if (new_in)
-            {
-               res += FormulaAndClauseSetParse(new_in,
-                                               nfset,
-                                               nwlset,
-                                               terms,
-                                               &new_limit,
-                                               skip_includes);
-               DestroyScanner(new_in);
-            }
-            StrTreeFree(new_limit);
-            FormulaSetInsertSet(fset, nfset);
-            ClauseSetInsertSet(wlset, nwlset);
-            assert(ClauseSetEmpty(nfset));
-            assert(ClauseSetEmpty(nwlset));
-            FormulaSetFree(nfset);
-            ClauseSetFree(nwlset);
-         }
-         else
-         {
-            // printf("Parsing begins\n");
-            if (TestInpId(in, "input_formula|fof|tff|thf|tcf"))
-            {
-               // printf("It's a formula\n");
-               form = WFormulaParse(in, terms);
-               // fprintf(stdout, "Parsed: ");
-               // WFormulaPrint(stdout, form, true);
-               // fprintf(stdout, "\n");
+               if (new_in)
+               {
+                  res += FormulaAndClauseSetParse(new_in,
+                                                  nfset,
+                                                  nwlset,
+                                                  terms,
+                                                  &new_limit,
+                                                  skip_includes);
+                  DestroyScanner(new_in);
+               }
+               StrTreeFree(new_limit);
+               FormulaSetInsertSet(fset, nfset);
+               ClauseSetInsertSet(wlset, nwlset);
+               assert(ClauseSetEmpty(nfset));
+               assert(ClauseSetEmpty(nwlset));
+               FormulaSetFree(nfset);
+               ClauseSetFree(nwlset);
             }
             else
             {
-               assert(TestInpId(in, "input_clause|cnf"));
-               //clause = ClauseParse(in, terms);
-               //ClauseSetInsert(cset, clause);
-               SetProblemType(PROBLEM_FO);
-               form = WFormClauseParse(in, terms);
+               if(TestInpId(in, "input_formula|fof|tff|thf|tcf"))
+               {
+                  if(TestInpId(in, "tff|thf|tcf"))
+                  {
+                     terms->sig->typed_symbols = true;
+                  }
+                  //printf("It's a formula\n");
+                  form = WFormulaParse(in, terms);
+                  //fprintf(stdout, "Parsed: ");
+                  //WFormulaPrint(stdout, form, true);
+               }
+               else
+               {
+                  assert(TestInpId(in, "input_clause|cnf"));
+                  //clause = ClauseParse(in, terms);
+                  //ClauseSetInsert(cset, clause);
+                  SetProblemType(PROBLEM_FO);
+                  form = WFormClauseParse(in, terms);
+               }
+               if(FormulaQueryType(form) == CPTypeWatchClause)
+               {
+                  assert(form->is_clause);
+                  clause = WFormClauseToClause(form);
+                  ClauseSetInsert(wlset, clause);
+                  WFormulaFree(form);
+               }
+               else
+               {
+                  FormulaSetInsert(fset, form);
+               }
+               res++;
             }
-            if (FormulaQueryType(form) == CPTypeWatchClause)
-            {
-               assert(form->is_clause);
-               clause = WFormClauseToClause(form);
-               ClauseSetInsert(wlset, clause);
-               WFormulaFree(form);
-            }
-            else
-            {
-               FormulaSetInsert(fset, form);
-            }
-            res++;
          }
-      }
-      break;
+         break;
    }
-   if (*name_selector)
+   if(*name_selector)
    {
       form = fset->anchor->succ;
-      while (form != fset->anchor)
+      while(form != fset->anchor)
       {
          nextform = form->succ;
-         if (!verify_name(name_selector, form->info))
+         if(!verify_name(name_selector, form->info))
          {
             FormulaSetDeleteEntry(form);
          }
          form = nextform;
       }
       clause = wlset->anchor->succ;
-      while (clause != wlset->anchor)
+      while(clause != wlset->anchor)
       {
          nextclause = clause->succ;
-         if (!verify_name(name_selector, clause->info))
+         if(!verify_name(name_selector, clause->info))
          {
             ClauseSetDeleteEntry(clause);
          }
@@ -1968,7 +1971,7 @@ bool TFormulaUnrollFOOL(WFormula_p form, TB_p terms)
 
 bool TFormulaReplaceEqnWithEquiv(WFormula_p form, TB_p terms)
 {
-   return map_formula(form, terms, do_bool_eqn_replace, DCFoolUnroll);
+   return map_formula(form, terms, do_bool_eqn_replace, DOEqToEq);
 }
 
 /*-----------------------------------------------------------------------
@@ -2070,7 +2073,7 @@ long TFormulaSetLiftItes(FormulaSet_p set, FormulaSet_p archive, TB_p terms)
    long res = 0;
    for (WFormula_p formula = set->anchor->succ; formula != set->anchor; formula = formula->succ)
    {
-      if (map_formula(formula, terms, do_ite_unroll, DCFoolUnroll))
+      if (map_formula(formula, terms, do_ite_unroll, DCLiftIte))
       {
          res++;
       }
@@ -2098,6 +2101,7 @@ long TFormulaSetLambdaNormalize(FormulaSet_p set, FormulaSet_p archive, TB_p ter
    {
       for (WFormula_p form = set->anchor->succ; form != set->anchor; form = form->succ)
       {
+         DBGTermCheckUnownedSubterm(stdout, form->tformula, "LambdaNormUnowned1");
          TFormula_p handle = LambdaToForall(terms, BetaNormalizeDB(terms, form->tformula));
 
          if (handle != form->tformula)
@@ -2106,6 +2110,7 @@ long TFormulaSetLambdaNormalize(FormulaSet_p set, FormulaSet_p archive, TB_p ter
             form->tformula = handle;
             DocFormulaModificationDefault(form, inf_fof_simpl);
             WFormulaPushDerivation(form, DCFofSimplify, NULL, NULL);
+            DBGTermCheckUnownedSubterm(stdout, handle, "LambdaNormUnowned2");
             res++;
          }
       }
@@ -2286,6 +2291,7 @@ long TFormulaSetNamedToDBLambdas(FormulaSet_p set, FormulaSet_p archive, TB_p te
             DocFormulaModificationDefault(form, inf_fof_simpl);
             WFormulaPushDerivation(form, DCFofSimplify, NULL, NULL);
             res++;
+            DBGTermCheckUnownedSubterm(stdout, handle, "UnownedToDBLambdas");
          }
       }
       return res;
@@ -2563,6 +2569,7 @@ void ClauseSetLiftLambdas(ClauseSet_p set, FormulaSet_p archive, TB_p terms,
    PStack_p defs = PStackAlloc();
    PTree_p all_defs = NULL;
    PDTree_p liftings = PDTreeAllocWDeleter(terms, deleter);
+   Term_p lterm, rterm;
 
    VarBankSetVCountsToUsed(terms->vars);
 
@@ -2571,10 +2578,16 @@ void ClauseSetLiftLambdas(ClauseSet_p set, FormulaSet_p archive, TB_p terms,
       bool cl_changed = false;
       for(Eqn_p lit = handle->literals; lit; lit = lit->next)
       {
-         Term_p lterm = !TermIsLambda(lit->lterm) && TermHasLambdaSubterm(lit->lterm) ?
-            LiftLambdas(terms, DecodeFormulasForCNF(terms, lit->lterm), defs, liftings) : lit->lterm;
-         Term_p rterm = !TermIsLambda(lit->rterm) && TermHasLambdaSubterm(lit->rterm) ?
-            LiftLambdas(terms, DecodeFormulasForCNF(terms, lit->rterm), defs, liftings) : lit->rterm;
+         DBGTermCheckUnownedSubterm(stdout, lit->lterm, "UnownedCSLift1L");
+         DBGTermCheckUnownedSubterm(stdout, lit->rterm, "UnownedCSLift1R");
+         lterm = !TermIsLambda(lit->lterm) && TermHasLambdaSubterm(lit->lterm) ?
+            LiftLambdas(terms, DecodeFormulasForCNF(terms, lit->lterm), defs, liftings)
+            : lit->lterm;
+         rterm = !TermIsLambda(lit->rterm) && TermHasLambdaSubterm(lit->rterm) ?
+            LiftLambdas(terms, DecodeFormulasForCNF(terms, lit->rterm), defs, liftings)
+            : lit->rterm;
+         DBGTermCheckUnownedSubterm(stdout, lit->lterm, "UnownedCSLift2L");
+         DBGTermCheckUnownedSubterm(stdout, lit->rterm, "UnownedCSLift2R");
          cl_changed = cl_changed || lit->lterm != lterm || lit->rterm != rterm;
          lit->lterm = lterm;
          lit->rterm = rterm;
@@ -2585,6 +2598,7 @@ void ClauseSetLiftLambdas(ClauseSet_p set, FormulaSet_p archive, TB_p terms,
          while (!(PStackEmpty(defs)))
          {
             WFormula_p def = PStackPopP(defs);
+            DBGTermCheckUnownedSubterm(stdout, def->tformula, "ClauseSetLiftLambdas2");
             ClausePushDerivation(handle, DCLiftLambdas, def, NULL);
             PTreeStore(&all_defs, def);
          }
@@ -2596,13 +2610,16 @@ void ClauseSetLiftLambdas(ClauseSet_p set, FormulaSet_p archive, TB_p terms,
    while((node = PTreeTraverseNext(def_iter)))
    {
       WFormula_p handle = node->key;
+      DBGTermCheckUnownedSubterm(stdout, handle->tformula, "ClauseSetLiftLambdas3");
       WFormula_p copy = WFormulaFlatCopy(handle);
+      DBGTermCheckUnownedSubterm(stdout, copy->tformula, "ClauseSetLiftLambdas4");
       FormulaSetInsert(archive, handle);
       if(unroll_fool)
       {
          TFormulaUnrollFOOL(copy, terms);
       }
       WFormulaSimplify(copy, terms);
+      DBGTermCheckUnownedSubterm(stdout, copy->tformula, "ClauseSetLiftLambdas5");
       WFormulaCNF2(copy, set, terms, fresh_vars, 100, unroll_fool);
       FormulaSetInsert(archive, copy);
    }
