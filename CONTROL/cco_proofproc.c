@@ -1182,7 +1182,6 @@ void ProofControlInit(ProofState_p state, ProofControl_p control,
                       HeuristicParms_p params, FVIndexParms_p fvi_params,
                       PStack_p wfcb_defs, PStack_p hcb_defs)
 {
-   initRL(state);
 
    PStackPointer sp;
    Scanner_p in;
