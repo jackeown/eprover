@@ -335,6 +335,8 @@ static long eliminate_backward_subsumed_clauses(ProofState_p state,
                              state->processed_non_units,
                              state->archive, lambda_demod);
    }
+
+   printf("E\n");
    state->backward_subsumed_count+=res;
    return res;
 }
