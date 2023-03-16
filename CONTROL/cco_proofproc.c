@@ -1993,6 +1993,7 @@ Clause_p ProcessClause(ProofState_p state, ProofControl_p control,
    eliminate_backward_subsumed_clauses(state, pclause,
                                        control->heuristic_parms.lambda_demod);
 
+   printf("1995\n");
 
    eliminate_unit_simplified_clauses(state, pclause->clause,
                                     control->heuristic_parms.lambda_demod);
