@@ -166,9 +166,7 @@ static long remove_subsumed(GlobalIndices_p indices,
           set == rlstate.state->processed_pos_eqns  ||
           set == rlstate.state->processed_pos_rules
          ){
-            printf("Before thing\n");
             rlstate.processedWeightSum -= (long long) handle->weight;
-            printf("After thing\n");
       }
 
       GlobalIndicesDeleteClause(indices, handle, lambda_demod);
@@ -298,8 +296,10 @@ static long eliminate_backward_subsumed_clauses(ProofState_p state,
 
    if(ClauseLiteralNumber(pclause->clause) == 1)
    {
+      printf("A\n");
       if(pclause->clause->pos_lit_no)
       {
+         printf("B\n");
          /* A unit rewrite rule that is a variant of an old rule is
             already subsumed by the older one.
             A unit rewrite rule can never subsume an unorientable
@@ -319,6 +319,7 @@ static long eliminate_backward_subsumed_clauses(ProofState_p state,
       }
       else
       {
+         printf("C\n");
          res += remove_subsumed(&(state->gindices), pclause,
                                 state->processed_neg_units,
                                 state->archive, lambda_demod);
@@ -329,6 +330,7 @@ static long eliminate_backward_subsumed_clauses(ProofState_p state,
    }
    else
    {
+      printf("D\n");
       res += remove_subsumed(&(state->gindices), pclause,
                              state->processed_non_units,
                              state->archive, lambda_demod);
