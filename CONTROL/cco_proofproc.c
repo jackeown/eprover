@@ -166,7 +166,9 @@ static long remove_subsumed(GlobalIndices_p indices,
           set == rlstate.state->processed_pos_eqns  ||
           set == rlstate.state->processed_pos_rules
          ){
+            printf("Before thing\n");
             rlstate.processedWeightSum -= (long long) handle->weight;
+            printf("After thing\n");
       }
 
       GlobalIndicesDeleteClause(indices, handle, lambda_demod);
