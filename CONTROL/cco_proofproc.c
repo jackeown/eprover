@@ -1870,6 +1870,7 @@ Clause_p ProcessClause(ProofState_p state, ProofControl_p control,
 
    // clause = control->hcb->hcb_select(control->hcb,
    //                                   state->unprocessed);
+   printf("Just before customized_hcb_select...\n");
    clause = customized_hcb_select(control->hcb, state->unprocessed);
    printf("Way before: %ld\n", clause->given_clause_selection_index);
    if (not_in_presaturation_interreduction)
@@ -1885,8 +1886,6 @@ Clause_p ProcessClause(ProofState_p state, ProofControl_p control,
       printf("\nSet given_clause_selection_index to %d\n", clause->given_clause_selection_index);
    }
 
-   // if(not_in_presaturation_interreduction) checkWeightTracking(state, "A", trackingWhich);
-
    if(!clause)
    {
       sendRLReward(0.0);
@@ -1899,7 +1898,6 @@ Clause_p ProcessClause(ProofState_p state, ProofControl_p control,
    }
    assert(clause);
 
-   // if(not_in_presaturation_interreduction) checkWeightTracking(state, "B", trackingWhich);
 
 
    if(not_in_presaturation_interreduction) rlstate.unprocessedWeightSum -= (long long) ClauseStandardWeight(clause);
@@ -1911,8 +1909,6 @@ Clause_p ProcessClause(ProofState_p state, ProofControl_p control,
    state->processed_count++;
 
    assert(!ClauseQueryProp(clause, CPIsIRVictim));
-
-   // if(not_in_presaturation_interreduction) checkWeightTracking(state, "C", trackingWhich);
 
 
    if(ProofObjectRecordsGCSelection)
@@ -1941,7 +1937,6 @@ Clause_p ProcessClause(ProofState_p state, ProofControl_p control,
       return NULL;
    }
 
-   // if(not_in_presaturation_interreduction) checkWeightTracking(state, "D", trackingWhich);
 
    if(ClauseIsSemFalse(pclause->clause))
    {
@@ -1963,7 +1958,6 @@ Clause_p ProcessClause(ProofState_p state, ProofControl_p control,
 
    document_processing(pclause->clause);
    state->proc_non_trivial_count++;
-   // if(not_in_presaturation_interreduction) checkWeightTracking(state, "E", trackingWhich);
 
    resclause = replacing_inferences(state, control, pclause);
    if(!resclause || ClauseIsEmpty(resclause))
@@ -1988,25 +1982,20 @@ Clause_p ProcessClause(ProofState_p state, ProofControl_p control,
    /* Now on to backward simplification. */
    clausedate = ClauseSetListGetMaxDate(state->demods, FullRewrite);
 
-   // if(not_in_presaturation_interreduction) checkWeightTracking(state, "F1", trackingWhich);
    eliminate_backward_rewritten_clauses(state, control, pclause->clause, &clausedate);
 
-   // if(not_in_presaturation_interreduction) checkWeightTracking(state, "F2", trackingWhich);
 
    eliminate_backward_subsumed_clauses(state, pclause,
                                        control->heuristic_parms.lambda_demod);
 
-   // if(not_in_presaturation_interreduction) checkWeightTracking(state, "F3", trackingWhich);
 
    eliminate_unit_simplified_clauses(state, pclause->clause,
                                     control->heuristic_parms.lambda_demod);
 
-   // if(not_in_presaturation_interreduction) checkWeightTracking(state, "F4", trackingWhich);
 
    eliminate_context_sr_clauses(state, control, pclause->clause,
                                 control->heuristic_parms.lambda_demod);
 
-   // if(not_in_presaturation_interreduction) checkWeightTracking(state, "F5", trackingWhich);
 
    ClauseSetSetProp(state->tmp_store, CPIsIRVictim);
 
@@ -2020,7 +2009,6 @@ Clause_p ProcessClause(ProofState_p state, ProofControl_p control,
    ClauseSetProp(clause, CPLimitedRW);
 
 
-   // if(not_in_presaturation_interreduction) checkWeightTracking(state, "G", trackingWhich);
 
 
    if(ClauseIsDemodulator(clause))
@@ -2052,7 +2040,6 @@ Clause_p ProcessClause(ProofState_p state, ProofControl_p control,
       ClauseSetIndexedInsert(state->processed_non_units, pclause);
    }
 
-   // if(not_in_presaturation_interreduction) checkWeightTracking(state, "H", trackingWhich);
 
    GlobalIndicesInsertClause(&(state->gindices), clause,
                              control->heuristic_parms.lambda_demod);
@@ -2090,7 +2077,6 @@ Clause_p ProcessClause(ProofState_p state, ProofControl_p control,
    }
    sendRLReward(0.0);
 
-   // if(not_in_presaturation_interreduction) checkWeightTracking(state, "END", trackingWhich);
 
    return NULL;
 }
