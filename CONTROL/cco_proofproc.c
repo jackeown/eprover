@@ -1959,6 +1959,8 @@ Clause_p ProcessClause(ProofState_p state, ProofControl_p control,
    document_processing(pclause->clause);
    state->proc_non_trivial_count++;
 
+   printf("After documenting processing...\n");
+
    resclause = replacing_inferences(state, control, pclause);
    if(!resclause || ClauseIsEmpty(resclause))
    {
@@ -2008,8 +2010,7 @@ Clause_p ProcessClause(ProofState_p state, ProofControl_p control,
    clause->date = clausedate;
    ClauseSetProp(clause, CPLimitedRW);
 
-
-
+   printf("2013\n");
 
    if(ClauseIsDemodulator(clause))
    {
