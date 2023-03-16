@@ -1976,6 +1976,8 @@ Clause_p ProcessClause(ProofState_p state, ProofControl_p control,
       return resclause;
    }
 
+   printf("1978\n");
+
    check_watchlist(&(state->wlindices), state->watchlist,
                       pclause->clause, state->archive,
                       control->heuristic_parms.watchlist_is_static,
@@ -1986,6 +1988,7 @@ Clause_p ProcessClause(ProofState_p state, ProofControl_p control,
 
    eliminate_backward_rewritten_clauses(state, control, pclause->clause, &clausedate);
 
+   printf("1990\n");
 
    eliminate_backward_subsumed_clauses(state, pclause,
                                        control->heuristic_parms.lambda_demod);
@@ -1994,6 +1997,7 @@ Clause_p ProcessClause(ProofState_p state, ProofControl_p control,
    eliminate_unit_simplified_clauses(state, pclause->clause,
                                     control->heuristic_parms.lambda_demod);
 
+   printf("2000\n");
 
    eliminate_context_sr_clauses(state, control, pclause->clause,
                                 control->heuristic_parms.lambda_demod);
