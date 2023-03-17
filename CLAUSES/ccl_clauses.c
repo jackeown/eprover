@@ -128,6 +128,7 @@ Clause_p clause_copy_meta(Clause_p clause)
    handle->pred        = NULL;
    handle->succ        = NULL;
    handle->given_clause_selection_index = clause->given_clause_selection_index;
+   handle->given_clause_selection_index_p = clause->given_clause_selection_index_p;
 
    return handle;
 }
@@ -271,7 +272,7 @@ Clause_p EmptyClauseAlloc(void)
    handle->pred        = NULL;
    handle->succ        = NULL;
    handle->given_clause_selection_index = -1;
-
+   handle->given_clause_selection_index_p = &(handle->given_clause_selection_index);
    return handle;
 }
 

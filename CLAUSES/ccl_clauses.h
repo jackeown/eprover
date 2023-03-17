@@ -170,6 +170,7 @@ typedef struct clause_cell
    struct clause_cell*   pred;        /* For clause sets = doubly  */
    struct clause_cell*   succ;        /* linked lists */
    long given_clause_selection_index;
+   long* given_clause_selection_index_p; // Necessary for tracking across copies.
 }ClauseCell, *Clause_p;
 
 /*---------------------------------------------------------------------*/
