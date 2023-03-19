@@ -174,10 +174,13 @@ static long remove_subsumed(GlobalIndices_p indices,
             rlstate.processedWeightSum -= (long long) handle->weight;
       }
 
+      printf("D2\n");
       GlobalIndicesDeleteClause(indices, handle, lambda_demod);
       ClauseSetExtractEntry(handle);
+      printf("D3\n");
       ClauseSetProp(handle, CPIsDead);
       ClauseSetInsert(archive, handle);
+      printf("D4\n");
    }
    printf("F\n");
    PStackFree(stack);
