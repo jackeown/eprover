@@ -1886,8 +1886,10 @@ Clause_p ProcessClause(ProofState_p state, ProofControl_p control,
          *(clause->given_clause_selection_index_p) = rlstate.numEverProcessed-1;
       }
    }
-   else
+   else{
       clause->given_clause_selection_index = -2;
+      *(clause->given_clause_selection_index_p) = -2;
+   }
    
    if (not_in_presaturation_interreduction){
       printRLState(rlstate);
