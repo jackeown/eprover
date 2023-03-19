@@ -166,11 +166,13 @@ static long remove_subsumed(GlobalIndices_p indices,
          printf("DAfter quote\n");
       }
 
-      if (set == rlstate.state->processed_neg_units || 
+
+      if ((rlstate.state != NULL) &&
+          (set == rlstate.state->processed_neg_units || 
           set == rlstate.state->processed_non_units ||
           set == rlstate.state->processed_pos_eqns  ||
           set == rlstate.state->processed_pos_rules
-         ){
+      )){
             printf("E\n");
             rlstate.processedWeightSum -= (long long) handle->weight;
       }
