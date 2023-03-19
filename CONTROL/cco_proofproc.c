@@ -160,9 +160,10 @@ static long remove_subsumed(GlobalIndices_p indices,
       }
       else
       {
-         printf("D\n");
+         printf("DBefore Quote\n");
          DocClauseQuote(GlobalOut, OutputLevel, 6, handle,
                         "subsumed", subsumer->clause);
+         printf("DAfter quote\n");
       }
 
       if (set == rlstate.state->processed_neg_units || 
