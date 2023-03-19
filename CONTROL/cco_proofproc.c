@@ -139,7 +139,6 @@ static long remove_subsumed(GlobalIndices_p indices,
                             ClauseSet_p archive,
                             bool lambda_demod)
 {
-   printf("A\n");
    Clause_p handle;
    long     res;
    PStack_p stack = PStackAlloc();
@@ -148,22 +147,18 @@ static long remove_subsumed(GlobalIndices_p indices,
 
    while(!PStackEmpty(stack))
    {
-      printf("B\n");
       handle = PStackPopP(stack);
       //printf("# XXX Removing (remove_subumed()) %p from %p = %p\n", handle, set, handle->set);
       if(ClauseQueryProp(handle, CPWatchOnly))
       {
-         printf("C\n");
          DocClauseQuote(GlobalOut, OutputLevel, 6, handle,
                         "extract_wl_subsumed", subsumer->clause);
 
       }
       else
       {
-         printf("DBefore Quote\n");
          DocClauseQuote(GlobalOut, OutputLevel, 6, handle,
                         "subsumed", subsumer->clause);
-         printf("DAfter quote\n");
       }
 
 
@@ -173,17 +168,13 @@ static long remove_subsumed(GlobalIndices_p indices,
           set == rlstate.state->processed_pos_eqns  ||
           set == rlstate.state->processed_pos_rules
       )){
-            printf("E\n");
             rlstate.processedWeightSum -= (long long) handle->weight;
       }
 
-      printf("D2\n");
       GlobalIndicesDeleteClause(indices, handle, lambda_demod);
       ClauseSetExtractEntry(handle);
-      printf("D3\n");
       ClauseSetProp(handle, CPIsDead);
       ClauseSetInsert(archive, handle);
-      printf("D4\n");
    }
    printf("F\n");
    PStackFree(stack);
@@ -1531,6 +1522,8 @@ void ProofStateInit(ProofState_p state, ProofControl_p control)
    HCB_p    tmphcb;
    PStack_p traverse;
    Eval_p   cell;
+
+   rlstate.state = state;
 
    OUTPRINT(1, "# Initializing proof state\n");
 
