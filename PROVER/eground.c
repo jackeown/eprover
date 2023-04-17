@@ -134,7 +134,7 @@ OptCell opts[] =
    {OPT_SUPRESS_RESULT,
     '\0', "suppress-result",
     NoArg, NULL,
-    "Supress actual printing of the result, just give a short message "
+    "Suppress actual printing of the result, just give a short message "
     "about success. Useful mainly for test runs."},
 
    {OPT_LOP_PARSE,
@@ -306,9 +306,9 @@ OptCell opts[] =
     'g', "give-up",
     ReqArg, NULL,
     "Give up early if the problem is unlikely to be reasonably"
-    " small. If run without constraints, the programm will give up if"
+    " small. If run without constraints, the program will give up if"
     " the clause with the largest number of instances will be expanded"
-    " into more than this number of instances. If run with contraints,"
+    " into more than this number of instances. If run with constraints,"
     " the program keeps a running count and will terminate if the"
     " estimated total"
     " number of clauses would exceed this value . A value of 0 will"
@@ -361,6 +361,7 @@ long   give_up = 0,
        miniscope_limit  = 1000,
        initial_literals = 0,
        initial_clauses = 0;
+long FormulaDefLimit = 24;
 ProblemType problemType  = PROBLEM_NOT_INIT;
 
 /*---------------------------------------------------------------------*/
@@ -448,7 +449,7 @@ int main(int argc, char* argv[])
       VERBOUT("Negated conjectures.\n");
    }
    freshvars = VarBankAlloc(type_bank);
-   if(FormulaSetCNF(formulas, f_ax_archive, clauses, terms, freshvars))
+   if(FormulaSetCNF(formulas, f_ax_archive, clauses, terms, freshvars,FormulaDefLimit))
    {
       VERBOUT("CNFization done\n");
    }
@@ -476,7 +477,7 @@ int main(int argc, char* argv[])
                             false);
    def_store->def_clauses->fvindex = FVIAnchorAlloc(cspec, perm);
 
-   SpecFeaturesCompute(&features, clauses, sig);
+   SpecFeaturesCompute(&features, clauses, formulas, f_ax_archive, terms);
 
    if(!SpecNoEq(&features))
    {
@@ -822,7 +823,7 @@ CLState_p process_options(int argc, char* argv[])
       if(getrlimit(RLIMIT_CPU, &limit))
       {
          TmpErrno = errno;
-         SysError("Unable to get sytem cpu time limit", SYS_ERROR);
+         SysError("Unable to get system cpu time limit", SYS_ERROR);
       }
       SystemTimeLimit = limit.rlim_max;
       if(SoftTimeLimit!=RLIM_INFINITY)
