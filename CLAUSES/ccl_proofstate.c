@@ -604,8 +604,8 @@ void ProofStateTrain(ProofState_p state, bool print_pos, bool print_neg)
 
 void ProofStateStatisticsPrint(FILE* out, ProofState_p state)
 {
-   fprintf(out, "# Initial clauses in saturation        : %lf\n",
-           state->axioms->members / 1000000.0);
+   fprintf(out, "# Initial clauses in saturation        : %ld\n",
+           state->axioms->members);
 
    fprintf(out, "# RL Seconds spent sending states      : %lf\n",
         state->RLTimeSpent_statePipe / 1000000.0);
