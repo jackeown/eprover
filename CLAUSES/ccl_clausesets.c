@@ -286,6 +286,11 @@ static void clause_set_extract_entry(Clause_p clause)
                               i);
       }
    }
+
+   printf("\nExtracting Clause: ");
+   ClausePrint(GlobalOut, clause, true);
+   printf(":from set: %p\n", clause->set);
+
    clause->pred->succ = clause->succ;
    clause->succ->pred = clause->pred;
    clause->set->literals-=ClauseLiteralNumber(clause);
@@ -471,6 +476,10 @@ void ClauseSetInsert(ClauseSet_p set, Clause_p newclause)
    Eval_p *root;
 
    assert(!newclause->set);
+
+   printf("Inserting Clause: ");
+   ClausePrint(stdout, newclause, true);
+   printf(":into set:  %p\n", set);
 
    newclause->succ = set->anchor;
    newclause->pred = set->anchor->pred;

@@ -1745,6 +1745,14 @@ Clause_p Saturate(ProofState_p state, ProofControl_p control, long
       sat_check_ttinsert_limit = control->heuristic_parms.sat_check_ttinsert_limit;
 
 
+   printf("Processed Sets: %p, %p, %p, %p\n", 
+      state->processed_neg_units, 
+      state->processed_pos_rules, 
+      state->processed_pos_eqns, 
+      state->processed_non_units);
+   
+   printf("Unprocessed Set: %p\n", state->unprocessed);
+
    while(!TimeIsUp &&
          !ClauseSetEmpty(state->unprocessed) &&
          step_limit   > count &&
