@@ -40,14 +40,20 @@ Changes
 
 typedef struct rlproofstate 
 {
+   size_t numEverProcessed;
    size_t numProcessed;
    size_t numUnprocessed;
    
-   float processedAvgWeight;
-   float unprocessedAvgWeight;
+   unsigned long long processedWeightSum;
+   // float processedAvgWeight;
+
+   unsigned long long unprocessedWeightSum;
+   // float unprocessedAvgWeight;
    
-   size_t queuePickCounts[NUM_CEFs];
-   float queuePickWeightSum[NUM_CEFs];
+   // size_t queuePickCounts[NUM_CEFs];
+   // float queuePickWeightSum[NUM_CEFs];
+   
+   ProofState_p state;
 
 } RLProofStateCell, *RLProofState_p;
 

@@ -81,8 +81,10 @@ typedef enum
    DOSplitEquiv,
    DOIntroDef,
    DOSplitConjunct,
+   DOEqToEq,
    DOLiftLambdas,
-   DOFOOLUnroll,
+   DOFoolUnroll,
+   DOLiftIte,
    DOEliminateBVar,
    /* HO inferences */
    DODynamicCNF,
@@ -155,8 +157,10 @@ typedef enum
    DCSplitEquiv       = DOSplitEquiv|Arg1Fof,
    DCIntroDef         = DOIntroDef,
    DCSplitConjunct    = DOSplitConjunct|Arg1Fof,
+   DCEqToEq           = DOEqToEq,
    DCLiftLambdas      = DOLiftLambdas|Arg1Fof,
-   DCFoolUnroll       = DOFOOLUnroll,
+   DCFoolUnroll       = DOFoolUnroll,
+   DCLiftIte          = DOLiftIte,
    DCEliminateBVar    = DOEliminateBVar,
    /* HO inferences */
    DCDynamicCNF       = DODynamicCNF|Arg1Cnf|ArgIsHO,
@@ -256,6 +260,7 @@ void WFormulaPushDerivation(WFormula_p form, DerivationCode op,
                             void* arg1, void* arg2);
 
 bool ClauseIsEvalGC(Clause_p clause);
+bool ClauseHasEvalGC(Clause_p clause);
 
 bool ClauseIsDummyQuote(Clause_p clause);
 Clause_p ClauseDerivFindFirst(Clause_p clause);
@@ -286,6 +291,7 @@ Derived_p DerivedAlloc(void);
 
 bool DerivedInProof(Derived_p derived);
 void DerivedSetInProof(Derived_p derived, bool in_proof);
+long DerivedCollectFCodes(Derived_p derived, NumTree_p *tree);
 
 void DerivationStackPCLPrint(FILE* out, Sig_p sig, PStack_p derivation);
 void DerivationStackTSTPPrint(FILE* out, Sig_p sig, PStack_p derivation);
@@ -316,6 +322,7 @@ void DerivationRenumber(Derivation_p derivation);
 Derivation_p DerivationCompute(PStack_p root_clauses, Sig_p sig);
 
 void DerivationAnalyse(Derivation_p derivationt);
+long DerivationCollectFCodes(Derivation_p derived, NumTree_p *tree);
 
 void DerivationPrint(FILE* out, Derivation_p derivation);
 void DerivationDotPrint(FILE* out, Derivation_p derivation,

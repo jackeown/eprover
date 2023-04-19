@@ -263,7 +263,7 @@ static Term_p tb_termtop_insert(TB_p bank, Term_p t)
       //assert(TermIsGround(t) == TermIsGroundCompute(t));
    }
 
-   
+
    return t;
 }
 
@@ -754,6 +754,7 @@ TB_p TBAlloc(Sig_p sig)
    handle->gc = GCAdminAlloc();
    handle->sig = sig;
    handle->vars = VarBankAlloc(sig->type_bank);
+   handle->vars->term_bank = handle;
    handle->db_vars = DBVarBankAlloc();
    TermCellStoreInit(&(handle->term_store));
 
@@ -872,12 +873,10 @@ Term_p TBInsert(TB_p bank, Term_p term, DerefType deref)
    if(TermIsFreeVar(term))
    {
       t = VarBankVarAssertAlloc(bank->vars, term->f_code, term->type);
-      TermSetBank(t, bank);
    }
    else if (TermIsDBVar(term))
    {
       t = TBRequestDBVar(bank, term->type, term->f_code);
-      TermSetBank(t, bank);
    }
    else
    {
@@ -933,8 +932,8 @@ Term_p TBInsertInstantiatedDeref(TB_p bank, Term_p term, DerefType deref)
 
       for(i=0; i<t->arity; i++)
       {
-         t->args[i] = 
-            TBInsertInstantiatedDeref(bank ? bank : TermGetBank(term), 
+         t->args[i] =
+            TBInsertInstantiatedDeref(bank ? bank : TermGetBank(term),
                                       term->args[i], CONVERT_DEREF(i, limit, deref));
       }
       t = tb_termtop_insert(bank, t);
@@ -1017,12 +1016,10 @@ Term_p TBInsertNoProps(TB_p bank, Term_p term, DerefType deref)
    if(TermIsFreeVar(term))
    {
       t = VarBankVarAssertAlloc(bank->vars, term->f_code, term->type);
-      TermSetBank(t, bank);
    }
    else if (TermIsDBVar(term))
    {
       t = TBRequestDBVar(bank, term->type, term->f_code);
-      TermSetBank(t, bank);
    }
    else
    {
@@ -1106,12 +1103,10 @@ Term_p  TBInsertRepl(TB_p bank, Term_p term, DerefType deref, Term_p old, Term_p
    if(TermIsFreeVar(term))
    {
       t = VarBankVarAssertAlloc(bank->vars, term->f_code, term->type);
-      TermSetBank(t, bank);
    }
    else if (TermIsDBVar(term))
    {
       t = TBRequestDBVar(bank, term->type, term->f_code);
-      TermSetBank(t, bank);
    }
    else
    {
@@ -1236,12 +1231,10 @@ Term_p TBInsertInstantiatedFO(TB_p bank, Term_p term)
    if(TermIsFreeVar(term))
    {
       t = VarBankVarAssertAlloc(bank->vars, term->f_code, term->type);
-      TermSetBank(t, bank);
    }
    else if (TermIsDBVar(term))
    {
       t = TBRequestDBVar(bank, term->type, term->f_code);
-      TermSetBank(t, bank);
    }
    else
    {
@@ -1295,7 +1288,6 @@ Term_p TBInsertInstantiatedHO(TB_p bank, Term_p term, bool follow_bind)
    else if (TermIsDBVar(term))
    {
       t = TBRequestDBVar(bank, term->type, term->f_code);
-      TermSetBank(t, bank);
       return t;
    }
 
@@ -1312,7 +1304,6 @@ Term_p TBInsertInstantiatedHO(TB_p bank, Term_p term, bool follow_bind)
    if(TermIsFreeVar(term))
    {
       t = VarBankVarAssertAlloc(bank->vars, term->f_code, term->type);
-      TermSetBank(t, bank);
    }
    else
    {
@@ -1391,12 +1382,10 @@ Term_p TBInsertOpt(TB_p bank, Term_p term, DerefType deref)
    if(TermIsFreeVar(term))
    {
       t = VarBankVarAssertAlloc(bank->vars, term->f_code, term->type);
-      TermSetBank(t, bank);
    }
    else if (TermIsDBVar(term))
    {
       t = TBRequestDBVar(bank, term->type, term->f_code);
-      TermSetBank(t, bank);
    }
    else
    {
@@ -1445,13 +1434,11 @@ Term_p  TBInsertDisjoint(TB_p bank, Term_p term)
    if(TermIsFreeVar(term))
    {
       t = VarBankGetAltVar(bank->vars, term);
-      TermSetBank(t, bank);
       // t = VarBankVarAssertAlloc(bank->vars, term->f_code+1, term->sort);
    }
    else if (TermIsDBVar(term))
    {
       t = TBRequestDBVar(bank, term->type, term->f_code);
-      TermSetBank(t, bank);
    }
    else
    {
@@ -1722,7 +1709,7 @@ Term_p TBTermParseReal(Scanner_p in, TB_p bank, bool check_symb_prop)
    StreamType    type_stream;
 
    source_name = DStrGetRef(AktToken(in)->source);
-   type_stream        = AktToken(in)->stream_type;
+   type_stream = AktToken(in)->stream_type;
    line = AktToken(in)->line;
    column = AktToken(in)->column;
 
@@ -2354,7 +2341,7 @@ Term_p TBGetFreqConstTerm(TB_p terms, Type_p type,
 //   it continues mapping t'. Else, it recursively applies f to
 //   arguments of t. Result term is guaranteed to be shared.
 //   Term mapper must also return shared term of the same type
-//   as the original one. IMPORTANT: If f returns NULL this signifies 
+//   as the original one. IMPORTANT: If f returns NULL this signifies
 //   that recursion should stop and the term is unaltered: this is used
 //   to painlessly implement optimizations.
 //
@@ -2524,7 +2511,7 @@ Term_p ParseIte(Scanner_p in, TB_p bank)
 // Function: NormalizePatternAppVar()
 //
 //   Tries to normalize applied variable so that all of its arguments
-//   are 
+//   are
 //
 // Global Variables: -
 //
@@ -2541,7 +2528,7 @@ Term_p NormalizePatternAppVar(TB_p bank, Term_p s)
 
    assert(TermIsAppliedFreeVar(s));
    assert(bank);
-   
+
    s = LambdaEtaReduceDB(bank, s);
    bool all_dbs = true;
    for(long i=1; i<s->arity && all_dbs; i++)
@@ -2550,7 +2537,7 @@ Term_p NormalizePatternAppVar(TB_p bank, Term_p s)
    }
 
    if(all_dbs && TermArrayNoDuplicates(s->args, s->arity))
-   {  
+   {
       return s;
    }
    else

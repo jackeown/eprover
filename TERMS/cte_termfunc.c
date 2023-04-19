@@ -378,7 +378,18 @@ void do_ho_print(FILE* out, TFormula_p term, Sig_p sig, DerefType deref, int dep
       do_fool_print(out, sig, term, depth);
       return;
    }
-
+   if(term->f_code == SIG_ITE_CODE)
+   {
+      assert(term->arity==3);
+      fprintf(out, "$ite(");
+      do_ho_print(out, term->args[0], sig, deref, depth);
+      fprintf(out, ", ");
+      do_ho_print(out, term->args[1], sig, deref, depth);
+      fprintf(out, ", ");
+      do_ho_print(out, term->args[0], sig, deref, depth);
+      fprintf(out, ")");
+      return;
+   }
 
 
    if(TermIsDBVar(term))
@@ -514,6 +525,7 @@ void do_fool_print(FILE* out, Sig_p sig, TFormula_p form, int depth)
       if(form->f_code == SIG_DB_LAMBDA_CODE)
       {
          fprintf(out, "Z%d", depth);
+         fprintf(out, "/* %ld */", form->args[1]->f_code);
          depth++;
       }
       else
@@ -1172,6 +1184,7 @@ Term_p TermCopy(Term_p source, VarBank_p vars, DBVarBank_p dbvars, DerefType der
       else
       {
          handle = _RequestDBVar(dbvars, source->type, source->f_code);
+         TermSetBank(handle, vars->term_bank);
       }
    }
    else
@@ -2570,6 +2583,51 @@ long TermCollectVariables(Term_p term, PTree_p *tree)
 
    return res;
 }
+
+/*-----------------------------------------------------------------------
+//
+// Function: TermCollectFCodes()
+//
+//   Insert all f_codes in term into
+//   tree. Return number of new f_codes found
+//
+// Global Variables: -
+//
+// Side Effects    : Memory operations
+//
+/----------------------------------------------------------------------*/
+
+long TermCollectFCodes(Term_p term, NumTree_p *tree)
+{
+   long res = 0;
+   PStack_p stack = PStackAlloc();
+   int      i;
+   IntOrP   dummy;
+
+   dummy.i_val = 0;
+   PStackPushP(stack,term);
+
+   while(!PStackEmpty(stack))
+   {
+      term = PStackPopP(stack);
+      if(term->f_code > 0)
+      {
+         if(NumTreeStore(tree, term->f_code, dummy, dummy))
+         {
+            res++;
+         }
+      }
+      for(i=0; i<term->arity; i++)
+      {
+         PStackPushP(stack,term->args[i]);
+      }
+   }
+   PStackFree(stack);
+
+   return res;
+}
+
+
 
 
 /*-----------------------------------------------------------------------

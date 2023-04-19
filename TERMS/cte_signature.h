@@ -27,6 +27,7 @@ Changes
 #define CTE_SIGNATURE
 
 #include <clb_stringtrees.h>
+#include <clb_numtrees.h>
 #include <clb_pdarrays.h>
 #include <clb_properties.h>
 #include <cte_functypes.h>
@@ -142,6 +143,7 @@ typedef struct sigcell
 
    /* Sort and type banks (type => sort, but a shortcut is useful) */
    TypeBank_p  type_bank;
+   bool        typed_symbols; /* Explicit types/sorts */
 
    /* Counters for generating new symbols */
    long      skolem_count;
@@ -288,6 +290,7 @@ void    SigDeclareIsPredicate(Sig_p sig, FunCode f);
 void    SigPrintTypes(FILE* out, Sig_p sig);
 void    SigPrintTypeDeclsTSTP(FILE* out, Sig_p sig);
 void    SigParseTFFTypeDeclaration(Scanner_p in, Sig_p sig);
+void    SigPrintTypeDeclsTSTPSelective(FILE* out, Sig_p sig, NumTree_p *symbols);
 bool    SigHasUnimplementedInterpretedSymbols(Sig_p sig);
 void    SigUpdateFeatureOffset(Sig_p sig, FunCode f);
 void    SigEnterLetScope(Sig_p sig, PStack_p type_decls);

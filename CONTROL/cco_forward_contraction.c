@@ -427,6 +427,10 @@ Clause_p ForwardContractSet(ProofState_p state, ProofControl_p
       }
       else
       {
+         if(set == state->unprocessed){
+            extern RLProofStateCell rlstate;
+            rlstate.unprocessedWeightSum -= handle->weight;
+         }
          ClauseSetDeleteEntry(handle);
       }
       handle = next;

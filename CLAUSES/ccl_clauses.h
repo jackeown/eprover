@@ -169,6 +169,8 @@ typedef struct clause_cell
    struct clausesetcell* set;         /* Is the clause in a set? */
    struct clause_cell*   pred;        /* For clause sets = doubly  */
    struct clause_cell*   succ;        /* linked lists */
+   long given_clause_selection_index;
+   long* given_clause_selection_index_p; // Necessary for tracking across copies.
 }ClauseCell, *Clause_p;
 
 /*---------------------------------------------------------------------*/
@@ -411,6 +413,8 @@ Clause_p ClauseNormalizeVars(Clause_p clause, VarBank_p fresh_vars);
    EqnListComputeFunctionRanks((clause)->literals, (rank_array), (count))
 #define  ClauseCollectVariables(clause,tree)                    \
    EqnListCollectVariables((clause)->literals,(tree))
+#define  ClauseCollectFCodes(clause,tree)                    \
+   EqnListCollectFCodes((clause)->literals,(tree))
 
 #define  ClauseAddFunOccs(clause, f_occur, res_stack)                   \
    EqnListAddFunOccs((clause)->literals, (f_occur), (res_stack))

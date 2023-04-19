@@ -85,9 +85,9 @@ extern int ActionPipe;
 extern int RewardPipe;
 extern int sync_num; // number to keep E and RL stuff in sync.
 
-void initRL();
+void initRL(ProofState_p);
 void sendRLState(RLProofStateCell);
-int recvRLAction(ProofState_p);
+int recvRLAction();
 void sendRLReward(float);
 
 

@@ -1,10 +1,14 @@
 Makefile.vars
 Makefile.dependencies
 include/
+DOC/*
+.vscode
+CONTRIB/mcts
 EXTERNAL/CSSCPA_filter
 PROVER/checkproof
 PROVER/classify_problem
 PROVER/direct_examples
+PROVER/epatternize
 PROVER/e_axfilter
 PROVER/e_client
 PROVER/e_deduction_server

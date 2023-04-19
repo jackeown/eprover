@@ -39,6 +39,25 @@ PERF_CTR_DEFINE(ParamodTimer);
 PERF_CTR_DEFINE(BWRWTimer);
 
 
+MCTSNode_p MCTSRoot;
+MCTSNode_p MCTSChosen;
+MCTSNode_p MCTSSimulated;
+Model criticModel;
+
+int StatePipe;
+int ActionPipe;
+int RewardPipe;
+RLProofStateCell rlstate;
+ClauseSet_p rl_weight_tracking;
+int sync_num;
+
+long long statePipeTimeSpent = 0;
+long long actionPipeTimeSpent = 0;
+long long rewardPipeTimeSpent = 0;
+long long statePrepTimeSpent = 0;
+
+
+
 /*---------------------------------------------------------------------*/
 /*                      Forward Declarations                           */
 /*---------------------------------------------------------------------*/
@@ -150,11 +169,23 @@ static long remove_subsumed(GlobalIndices_p indices,
          DocClauseQuote(GlobalOut, OutputLevel, 6, handle,
                         "subsumed", subsumer->clause);
       }
+
+
+      if (
+          set == rlstate.state->processed_neg_units || 
+          set == rlstate.state->processed_non_units ||
+          set == rlstate.state->processed_pos_eqns  ||
+          set == rlstate.state->processed_pos_rules
+      ){
+            rlstate.processedWeightSum -= (long long) handle->weight;
+      }
+
       GlobalIndicesDeleteClause(indices, handle, lambda_demod);
       ClauseSetExtractEntry(handle);
       ClauseSetProp(handle, CPIsDead);
       ClauseSetInsert(archive, handle);
    }
+   printf("F\n");
    PStackFree(stack);
    return res;
 }
@@ -182,6 +213,9 @@ eliminate_backward_rewritten_clauses(ProofState_p
       old_clause_count= state->tmp_store->members;
    bool min_rw = false;
 
+   assert(rl_weight_tracking->members == 0);
+
+   
    PERF_CTR_ENTRY(BWRWTimer);
    if(ClauseIsDemodulator(clause))
    {
@@ -189,7 +223,7 @@ eliminate_backward_rewritten_clauses(ProofState_p
       if(state->gindices.bw_rw_index)
       {
          min_rw = RemoveRewritableClausesIndexed(control->ocb,
-                                                 state->tmp_store,
+                                                 rl_weight_tracking,
                                                  state->archive,
                                                  clause, *date, &(state->gindices),
                                                  control->heuristic_parms.lambda_demod);
@@ -199,33 +233,43 @@ eliminate_backward_rewritten_clauses(ProofState_p
       {
          min_rw = RemoveRewritableClauses(control->ocb,
                                           state->processed_pos_rules,
-                                          state->tmp_store,
+                                          rl_weight_tracking,
                                           state->archive,
                                           clause, *date, &(state->gindices),
                                           control->heuristic_parms.lambda_demod)
             ||min_rw;
          min_rw = RemoveRewritableClauses(control->ocb,
                                           state->processed_pos_eqns,
-                                          state->tmp_store,
+                                          rl_weight_tracking,
                                           state->archive,
                                           clause, *date, &(state->gindices),
                                           control->heuristic_parms.lambda_demod)
             ||min_rw;
          min_rw = RemoveRewritableClauses(control->ocb,
                                           state->processed_neg_units,
-                                          state->tmp_store,
+                                          rl_weight_tracking,
                                           state->archive,
                                           clause, *date, &(state->gindices),
                                           control->heuristic_parms.lambda_demod)
             ||min_rw;
          min_rw = RemoveRewritableClauses(control->ocb,
                                           state->processed_non_units,
-                                          state->tmp_store,
+                                          rl_weight_tracking,
                                           state->archive,
                                           clause, *date, &(state->gindices),
                                           control->heuristic_parms.lambda_demod)
             ||min_rw;
       }
+
+      Clause_p handle=rl_weight_tracking->anchor->succ;
+      while(rl_weight_tracking->members > 0){
+         Clause_p next = handle->succ;
+         rlstate.processedWeightSum -= (long long) ClauseStandardWeight(handle);
+         ClauseSetMoveClause(state->tmp_store, handle);
+         handle = next;
+      }
+
+
       state->backward_rewritten_lit_count+=
          (state->tmp_store->literals-old_lit_count);
       state->backward_rewritten_count+=
@@ -321,19 +365,23 @@ static void eliminate_unit_simplified_clauses(ProofState_p state,
                                               Clause_p clause,
                                               bool lambda_demod)
 {
+
    if(ClauseIsRWRule(clause)||!ClauseIsUnit(clause))
    {
       return;
    }
+
+   assert(rl_weight_tracking->members == 0);
+
    ClauseSetUnitSimplify(state->processed_non_units, clause,
-                         state->tmp_store,
+                         rl_weight_tracking,
                          state->archive,
                          &(state->gindices),
                          lambda_demod);
    if(ClauseIsPositive(clause))
    {
       ClauseSetUnitSimplify(state->processed_neg_units, clause,
-                            state->tmp_store,
+                            rl_weight_tracking,
                             state->archive,
                             &(state->gindices),
                            lambda_demod);
@@ -341,16 +389,26 @@ static void eliminate_unit_simplified_clauses(ProofState_p state,
    else
    {
       ClauseSetUnitSimplify(state->processed_pos_rules, clause,
-                            state->tmp_store,
+                            rl_weight_tracking,
                             state->archive,
                             &(state->gindices),
                            lambda_demod);
       ClauseSetUnitSimplify(state->processed_pos_eqns, clause,
-                            state->tmp_store,
+                            rl_weight_tracking,
                             state->archive,
                             &(state->gindices),
                            lambda_demod);
    }
+
+   Clause_p handle=rl_weight_tracking->anchor->succ;
+   while(rl_weight_tracking->members > 0){
+      Clause_p next = handle->succ;
+      rlstate.processedWeightSum -= (long long) ClauseStandardWeight(handle);
+      ClauseSetMoveClause(state->tmp_store, handle);
+      handle = next;
+   }
+
+
 }
 
 /*-----------------------------------------------------------------------
@@ -372,16 +430,29 @@ static long eliminate_context_sr_clauses(ProofState_p state,
                                          Clause_p clause,
                                          bool lambda_demod)
 {
+
+   assert(rl_weight_tracking->members == 0);
+
    if(!control->heuristic_parms.backward_context_sr)
    {
       return 0;
    }
-   return RemoveContextualSRClauses(state->processed_non_units,
-                                    state->tmp_store,
+   long numRemoved = RemoveContextualSRClauses(state->processed_non_units,
+                                    rl_weight_tracking,
                                     state->archive,
                                     clause,
                                     &(state->gindices),
                                     lambda_demod);
+
+   Clause_p handle=rl_weight_tracking->anchor->succ;
+   while(rl_weight_tracking->members > 0){
+      Clause_p next = handle->succ;
+      rlstate.processedWeightSum -= (long long) ClauseStandardWeight(handle);
+      ClauseSetMoveClause(state->tmp_store, handle);
+      handle = next;
+   }
+
+   return numRemoved;
 }
 
 /*-----------------------------------------------------------------------
@@ -774,6 +845,7 @@ static Clause_p insert_new_clauses(ProofState_p state, ProofControl_p control)
       ClauseDelProp(handle, CPIsOriented);
       DocClauseQuoteDefault(6, handle, "eval");
 
+      rlstate.unprocessedWeightSum += (long long) ClauseStandardWeight(handle);
       ClauseSetInsert(state->unprocessed, handle);
    }
    return NULL;
@@ -971,6 +1043,7 @@ Clause_p SATCheck(ProofState_p state, ProofControl_p control)
       //printf("# Cardinality of unprocessed: %ld\n",
       //        ClauseSetCardinality(state->unprocessed));
       base_time = GetTotalCPUTime();
+      printf("SATCHECK SATCHECK SATCHECK SATCHECK SATCHECK #########\n");
       empty = ForwardContractSetReweight(state, control, state->unprocessed,
                                        false, 2,
                                        &(state->proc_trivial_count));
@@ -1121,7 +1194,6 @@ void ProofControlInit(ProofState_p state, ProofControl_p control,
                       HeuristicParms_p params, FVIndexParms_p fvi_params,
                       PStack_p wfcb_defs, PStack_p hcb_defs)
 {
-   initRL();
 
    PStackPointer sp;
    Scanner_p in;
@@ -1460,6 +1532,8 @@ void ProofStateInit(ProofState_p state, ProofControl_p control)
    PStack_p traverse;
    Eval_p   cell;
 
+   rlstate.state = state;
+
    OUTPRINT(1, "# Initializing proof state\n");
 
    assert(ClauseSetEmpty(state->processed_pos_rules));
@@ -1503,7 +1577,7 @@ void ProofStateInit(ProofState_p state, ProofControl_p control)
       }
       ClauseSetInsert(state->unprocessed, new);
    }
-   OUTPRINT(1, "# Initializing proof state (3)\n");
+   //OUTPRINT(1, "# Initializing proof state (3)\n");
    ClauseSetMarkSOS(state->unprocessed, control->heuristic_parms.use_tptp_sos);
    // printf("Before EvalTreeTraverseExit\n");
    EvalTreeTraverseExit(traverse);
@@ -1536,21 +1610,6 @@ void ProofStateInit(ProofState_p state, ProofControl_p control)
 }
 
 
-MCTSNode_p MCTSRoot;
-MCTSNode_p MCTSChosen;
-MCTSNode_p MCTSSimulated;
-
-int StatePipe;
-int ActionPipe;
-int RewardPipe;
-RLProofStateCell rlstate;
-Model criticModel;
-int sync_num;
-
-long long statePipeTimeSpent = 0;
-long long actionPipeTimeSpent = 0;
-long long rewardPipeTimeSpent = 0;
-long long statePrepTimeSpent = 0;
 
 
 long long timeInMicroSeconds() {
@@ -1570,7 +1629,7 @@ void timerEnd(long long startTime, long long* destination){
 
 
 
-void initRL(){
+void initRL(ProofState_p state){
    printf("Initializing Reinforcement Learning...\n");
    MCTSRoot = makeRoot();
    MCTSChosen = MCTSRoot;
@@ -1581,26 +1640,86 @@ void initRL(){
    // char* reward_pipe_path = (reward_pipe_path = getenv("E_RL_REWARDPIPE_PATH")) ? reward_pipe_path : "/tmp/RewardPipe1";
 
    // printf("State Pipe Path: %s\n", state_pipe_path);
+   // printf("Action Pipe Path: %s\n", action_pipe_path);
+   // printf("Reward Pipe Path: %s\n", reward_pipe_path);
 
    // StatePipe = open(state_pipe_path, O_WRONLY);
    // ActionPipe = open(action_pipe_path, O_RDONLY);
    // RewardPipe = open(reward_pipe_path, O_WRONLY);
    // sync_num = -1; // -1 because it is incremented in each call to sendRLState()
+
+
+   // Initialize rlstate
+   rlstate.numEverProcessed = 0;
+   rlstate.numProcessed = 0;
+   rlstate.numUnprocessed = 0;
+   rlstate.processedWeightSum = 0;
+   rlstate.unprocessedWeightSum = 0;
+   rlstate.state = state;
+
+   rl_weight_tracking = ClauseSetAlloc();
 }
 
+
+void checkWeightTracking(ProofState_p state, char* caption, int which){
+
+   if (which == 0 || which == 2){
+      long long  pWeight = ClauseSetStandardWeight(state->processed_neg_units) +
+                           ClauseSetStandardWeight(state->processed_non_units) +
+                           ClauseSetStandardWeight(state->processed_pos_eqns) +
+                           ClauseSetStandardWeight(state->processed_pos_rules);
+      if (pWeight != rlstate.processedWeightSum){
+         printf("Processed tracking failure at %s: (%lld != %llu)\n", caption, pWeight, rlstate.processedWeightSum);
+         exit(1);
+      }
+      else{
+         printf("Processed tracked successfully at %s: (%lld)\n", caption, pWeight);
+      }
+   }
+
+   if (which == 1 || which == 2){
+      long long uWeight = ClauseSetStandardWeight(state->unprocessed);
+      if (uWeight != rlstate.unprocessedWeightSum){
+         printf("Unprocessed tracking failure at %s: (%lld != %llu)\n", caption, uWeight, rlstate.unprocessedWeightSum);
+         exit(1);
+      }
+      else{
+         printf("Unprocessed tracked successfully at %s: (%lld)\n", caption, uWeight);
+      }
+   }
+
+}
+
+
+void printRLState(RLProofStateCell state){
+   float pweight = (float)state.processedWeightSum / (float)state.numProcessed;
+   pweight = (isnan(pweight)) ? -1.0 : pweight;
+
+   float uweight = (float)state.unprocessedWeightSum / (float)state.numUnprocessed;
+   uweight = (isnan(uweight)) ? -1.0 : uweight;
+
+   // printf("uweight = sum / len: %f = %llu / %lu\n", uweight,state.unprocessedWeightSum, state.numUnprocessed);
+   // printf("pweight = sum / len: %f = %llu / %lu\n", pweight,state.processedWeightSum, state.numProcessed);
+   printf("RL State: (%lu, %lu, %lu, %f, %f)\n", state.numEverProcessed, state.numProcessed, state.numUnprocessed, pweight, uweight);
+}
 
 void sendRLState(RLProofStateCell state){
    long long start = timerStart();
    // printf("Sending RL State...\n");
    // sync_num++;
 
-   // write(StatePipe, &(sync_num), sizeof(int));
+   // float pweight = (float)state.processedWeightSum / (float) state.numProcessed;
+   // pweight = (isnan(pweight)) ? -1.0 : pweight;
 
+   // float uweight = (float)state.unprocessedWeightSum / (float) state.numUnprocessed;
+   // uweight = (isnan(uweight)) ? -1.0 : uweight;
+
+   // write(StatePipe, &(sync_num), sizeof(int));
+   // write(StatePipe, &(state.numEverProcessed), sizeof(size_t));
    // write(StatePipe, &(state.numProcessed), sizeof(size_t));
    // write(StatePipe, &(state.numUnprocessed), sizeof(size_t));
-
-   // write(StatePipe, &(state.processedAvgWeight), sizeof(float));
-   // write(StatePipe, &(state.unprocessedAvgWeight), sizeof(float));
+   // write(StatePipe, &pweight, sizeof(float));
+   // write(StatePipe, &uweight, sizeof(float));
 
    timerEnd(start, &statePipeTimeSpent);
 }
@@ -1622,29 +1741,24 @@ float invokeCritic(RLProofStateCell state){
 }
 
 
-int recvRLAction(ProofState_p state){
+int recvRLAction(){
    long long start = timerStart();
    // char buff[200];
 
-   // // printf("----Reading sync_num_remote\n");
-   // read(ActionPipe, buff, sizeof(int));
+   // printf("----Reading sync_num_remote\n");
+   // int x = read(ActionPipe, buff, sizeof(int));
    // int sync_num_remote = *((int*)buff);
 
    // // printf("----Reading actual action\n");
    // read(ActionPipe, buff, sizeof(int));
    // int action = *((int*)buff);
-   
+   // // printf("Action received: %d\n", action);
+
    // // printf("----assertion\n");
    // assert(sync_num_remote == sync_num);
-   // assert(action >= 0 && action < 75);
+   // assert(action >= 0 && action < 20);
 
-   // printf("----queuePickCounts[action]++\n");
-   // rlstate.queuePickCounts[action]++;
-
-   // printf("----done\n");
-
-
-   // int action = rand() % 75;
+   // int action = rand() % 20;
 
    int action;
    if (MCTS_SIM){
@@ -1687,7 +1801,9 @@ int recvRLAction(ProofState_p state){
    }
 
    timerEnd(start, &actionPipeTimeSpent);
+
    return action;
+   // return 3;
 }
 
 
@@ -1700,9 +1816,54 @@ void sendRLReward(float reward){
    // if (reward == 1.0){
    //    printf("RL thinks proof is found!\n");
    // }
+   // printf("RL Reward: %f\n", reward);
+
    timerEnd(start, &rewardPipeTimeSpent);
 }
 
+Clause_p customized_hcb_select(HCB_p hcb, ClauseSet_p set)
+{
+   Clause_p clause;
+
+   clause = ClauseSetFindBest(set, hcb->current_eval);
+   while(clause && ClauseIsOrphaned(clause))
+   {
+      rlstate.unprocessedWeightSum -= (long long) ClauseStandardWeight(clause);
+      ClauseSetExtractEntry(clause);
+      ClauseFree(clause);
+      clause = ClauseSetFindBest(set, hcb->current_eval);
+   }
+   hcb->select_count++;
+   while(hcb->select_count ==
+         PDArrayElementInt(hcb->select_switch,hcb->current_eval))
+   {
+      hcb->current_eval++;
+   }
+   if(hcb->current_eval == hcb->wfcb_no)
+   {
+      hcb->select_count = 0;
+      hcb->current_eval = 0;
+   }
+   return clause;
+}
+
+
+
+
+
+void PrintArchive(ProofState_p state){
+
+   printf("######################################\n");
+   for(Clause_p handle=state->archive->anchor->succ; handle != state->archive->anchor; handle=handle->succ){
+      ClausePrint(GlobalOut, handle, true);
+      printf(" %ld ", handle->given_clause_selection_index);
+      printf(" %d ", ClauseIsEvalGC(handle));
+      printf(" %d ", ClauseHasEvalGC(handle));
+      printf(" %d \n", ClauseQueryProp(handle, CPIsProofClause));
+   }
+   printf("######################################\n");
+
+}
 
 
 
@@ -1723,78 +1884,99 @@ void sendRLReward(float reward){
 Clause_p ProcessClause(ProofState_p state, ProofControl_p control,
                        long answer_limit)
 {
+
+
+   // printf("Number of CEFs: %d\n", control->hcb->wfcb_no);
    Clause_p         clause, resclause, tmp_copy, empty, arch_copy = NULL;
    FVPackedClause_p pclause;
    SysDate          clausedate;
+   static bool first_time = true;
 
+   int trackingWhich = 2;
 
    state->RLTimeSpent_statePipe = statePipeTimeSpent;
    state->RLTimeSpent_actionPipe = actionPipeTimeSpent;
    state->RLTimeSpent_rewardPipe = rewardPipeTimeSpent;
    state->RLTimeSpent_prep = statePrepTimeSpent;
 
+   bool not_in_presaturation_interreduction = (control->heuristic_parms.selection_strategy != SelectNoGeneration);
+
    //////// Jack McKeown's Reinforcement Learning Idea ///////////////////
-   // 1.) Send RL proof "state" to agent
    long long startTime = timerStart();
-   // rlstate.numProcessed = ClauseSetCardinality(state->processed_neg_units) \
-   //                      + ClauseSetCardinality(state->processed_non_units) \
-   //                      + ClauseSetCardinality(state->processed_pos_eqns) \
-   //                      + ClauseSetCardinality(state->processed_pos_rules);
+   rlstate.numProcessed = ClauseSetCardinality(state->processed_neg_units) \
+                        + ClauseSetCardinality(state->processed_non_units) \
+                        + ClauseSetCardinality(state->processed_pos_eqns) \
+                        + ClauseSetCardinality(state->processed_pos_rules);
+   rlstate.numUnprocessed = ClauseSetCardinality(state->unprocessed);
 
-   // long long total = 0;
-   // total += ClauseSetStandardWeight(state->processed_neg_units);
-   // total += ClauseSetStandardWeight(state->processed_non_units);
-   // total += ClauseSetStandardWeight(state->processed_pos_eqns);
-   // total += ClauseSetStandardWeight(state->processed_pos_rules);
-   // if (rlstate.numProcessed)
-   //    rlstate.processedAvgWeight = total / (float) rlstate.numProcessed;
-   // else
-   //    rlstate.processedAvgWeight = -1.0;
 
-   // rlstate.numUnprocessed = ClauseSetCardinality(state->unprocessed);
-   // if (rlstate.numUnprocessed)
-   //    rlstate.unprocessedAvgWeight = ClauseSetStandardWeight(state->unprocessed) / (float) rlstate.numUnprocessed;
-   // else
-   //    rlstate.unprocessedAvgWeight = -1.0;
+   if(first_time && not_in_presaturation_interreduction){
+      first_time = false;
+      rlstate.processedWeightSum =  ClauseSetStandardWeight(state->processed_neg_units) +
+                                    ClauseSetStandardWeight(state->processed_non_units) +
+                                    ClauseSetStandardWeight(state->processed_pos_eqns)  +
+                                    ClauseSetStandardWeight(state->processed_pos_rules);
 
+      rlstate.unprocessedWeightSum = ClauseSetStandardWeight(state->unprocessed);
+
+      printf("Initialized processed/unprocessed weights for tracking: (%llu, %llu)\n", rlstate.processedWeightSum, rlstate.unprocessedWeightSum);
+      rlstate.numEverProcessed += 1;
+   }
+   else if(not_in_presaturation_interreduction){
+      // Comment for better performance, once you're sure there are no issues with the tracking...
+      // checkWeightTracking(state, "MainCheck", trackingWhich);
+      rlstate.numEverProcessed += 1;
+   }
 
    timerEnd(startTime, &statePrepTimeSpent);
 
    sendRLState(rlstate);
 
-   // 2.) Receive "action" from agent 
-   //     (to become control->hcb->current_eval to tell which queue to select from)
-   size_t action = recvRLAction(state);
-
-   // printf("Setting action in control->hcb->current_eval\n");
+   size_t action = recvRLAction();
    control->hcb->current_eval = action;
 
-   // 3.) Send "reward" to agent 
-   //     (so that the external guidance can learn)
-   //     (placed before every return statement in this function.)
    ///////////////////////////////////////////////////////////////////////
 
-   // printf("control->hcb->hcb_select()\n");
-   clause = control->hcb->hcb_select(control->hcb,
-                                     state->unprocessed);
-   
-   // printf("only thing left is to send the reward I believe...\n");
+   // clause = control->hcb->hcb_select(control->hcb,
+   //                                   state->unprocessed);
 
-   // rlstate.queuePickWeightSum[action] += ClauseWeight(clause, 1,1,1,1,1,1, false);
+   printf("Just before customized_hcb_select...\n");
+   clause = customized_hcb_select(control->hcb, state->unprocessed);
+   printf("Way before: %ld\n", clause->given_clause_selection_index);
+   if (not_in_presaturation_interreduction){
+      if (*(clause->given_clause_selection_index_p) < 0){
+         clause->given_clause_selection_index = rlstate.numEverProcessed-1;
+         *(clause->given_clause_selection_index_p) = rlstate.numEverProcessed-1;
+      }
+   }
+   else{
+      clause->given_clause_selection_index = -2;
+      *(clause->given_clause_selection_index_p) = -2;
+   }
+   
+   if (not_in_presaturation_interreduction){
+      printRLState(rlstate);
+      printf("CEF Choice: %lu\n", action);
+      printf("Given Clause: ");
+      ClausePrint(stdout, clause, true);
+      printf("\nSet given_clause_selection_index to %d\n", clause->given_clause_selection_index);
+   }
 
    if(!clause)
    {
       sendRLReward(0.0);
+      printf("!clause\n");
       return NULL;
    }
-
-   //EvalListPrintComment(GlobalOut, clause->evaluations); printf("\n");
    if(OutputLevel==1)
    {
       putc('#', GlobalOut);
    }
    assert(clause);
 
+
+
+   if(not_in_presaturation_interreduction) rlstate.unprocessedWeightSum -= (long long) ClauseStandardWeight(clause);
    ClauseSetExtractEntry(clause);
    ClauseRemoveEvaluations(clause);
    // Orphans have been excluded during selection now
@@ -1804,9 +1986,16 @@ Clause_p ProcessClause(ProofState_p state, ProofControl_p control,
 
    assert(!ClauseQueryProp(clause, CPIsIRVictim));
 
+
    if(ProofObjectRecordsGCSelection)
    {
+      printf("\nArchiving clause...\n");
+      printf("Before: %d\n", clause->given_clause_selection_index);
       arch_copy = ClauseArchiveCopy(state->archive, clause);
+      // printf("After: %d\n", arch_copy->given_clause_selection_index);
+      ClausePrint(stdout, state->archive->anchor->pred, true);
+      printf("After: %d\n", state->archive->anchor->pred->given_clause_selection_index);
+      // PrintArchive(state);
    }
 
    if(!(pclause = ForwardContractClause(state, control,
@@ -1820,8 +2009,10 @@ Clause_p ProcessClause(ProofState_p state, ProofControl_p control,
          ClauseSetDeleteEntry(arch_copy);
       }
       sendRLReward(0.0);
+      printf("Subsumed I think!\n");
       return NULL;
    }
+
 
    if(ClauseIsSemFalse(pclause->clause))
    {
@@ -1834,6 +2025,7 @@ Clause_p ProcessClause(ProofState_p state, ProofControl_p control,
          clause = FVUnpackClause(pclause);
          ClauseEvaluateAnswerLits(clause);
          sendRLReward(1.0);
+         printf("ClauseIsSemFalse!\n");
          return clause;
       }
    }
@@ -1842,6 +2034,8 @@ Clause_p ProcessClause(ProofState_p state, ProofControl_p control,
 
    document_processing(pclause->clause);
    state->proc_non_trivial_count++;
+
+   printf("After documenting processing...\n");
 
    resclause = replacing_inferences(state, control, pclause);
    if(!resclause || ClauseIsEmpty(resclause))
@@ -1858,6 +2052,7 @@ Clause_p ProcessClause(ProofState_p state, ProofControl_p control,
       return resclause;
    }
 
+
    check_watchlist(&(state->wlindices), state->watchlist,
                       pclause->clause, state->archive,
                       control->heuristic_parms.watchlist_is_static,
@@ -1867,12 +2062,20 @@ Clause_p ProcessClause(ProofState_p state, ProofControl_p control,
    clausedate = ClauseSetListGetMaxDate(state->demods, FullRewrite);
 
    eliminate_backward_rewritten_clauses(state, control, pclause->clause, &clausedate);
+
+
    eliminate_backward_subsumed_clauses(state, pclause,
                                        control->heuristic_parms.lambda_demod);
+
+
    eliminate_unit_simplified_clauses(state, pclause->clause,
                                     control->heuristic_parms.lambda_demod);
+
+
    eliminate_context_sr_clauses(state, control, pclause->clause,
                                 control->heuristic_parms.lambda_demod);
+
+
    ClauseSetSetProp(state->tmp_store, CPIsIRVictim);
 
    clause = pclause->clause;
@@ -1891,23 +2094,29 @@ Clause_p ProcessClause(ProofState_p state, ProofControl_p control,
       {
          TermCellSetProp(clause->literals->lterm, TPIsRewritable);
          state->processed_pos_rules->date = clausedate;
+         rlstate.processedWeightSum += ClauseStandardWeight(pclause->clause);
          ClauseSetIndexedInsert(state->processed_pos_rules, pclause);
       }
       else
       {
          state->processed_pos_eqns->date = clausedate;
+         rlstate.processedWeightSum += ClauseStandardWeight(pclause->clause);
          ClauseSetIndexedInsert(state->processed_pos_eqns, pclause);
       }
    }
    else if(ClauseLiteralNumber(clause) == 1)
    {
       assert(clause->neg_lit_no == 1);
+      rlstate.processedWeightSum += ClauseStandardWeight(pclause->clause);
       ClauseSetIndexedInsert(state->processed_neg_units, pclause);
    }
    else
    {
+      rlstate.processedWeightSum += ClauseStandardWeight(pclause->clause);
       ClauseSetIndexedInsert(state->processed_non_units, pclause);
    }
+
+
    GlobalIndicesInsertClause(&(state->gindices), clause,
                              control->heuristic_parms.lambda_demod);
 
@@ -1943,6 +2152,8 @@ Clause_p ProcessClause(ProofState_p state, ProofControl_p control,
       return empty;
    }
    sendRLReward(0.0);
+
+
    return NULL;
 }
 
