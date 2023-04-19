@@ -16,17 +16,25 @@ include ../Makefile.vars
 
 PICOSAT = picosat-965
 
-all: picosat mcts
+# all: picosat mcts NNetInterface/libNNetInterface.a
+# 	@if [ 1 ]; then\
+# 	   $(LN) $(PICOSAT)/libpicosat.a CONTRIB.a;\
+# 	   ar r CONTRIB.a mcts/mcts.o;\
+# 	   ar r CONTRIB.a NNetInterface/libNNetInterface.a;\
+# 	fi;
+
+all: picosat mcts NNetInterface/libNNetInterface.a
 	@if [ 1 ]; then\
 	   $(LN) $(PICOSAT)/libpicosat.a CONTRIB.a;\
 	   ar r CONTRIB.a mcts/mcts.o;\
+	   cd NNetInterface; ar x libNNetInterface.a; cd ..;\
+	   ar r CONTRIB.a NNetInterface/*.o;\
 	fi;
-
 
 
 # Remove all automatically generated files
 
-clean: $(PICOSAT)/Makefile
+clean: $(PICOSAT)/makefile
 	cd $(PICOSAT); $(MAKE) clean
 	@rm  -f *.a
 
@@ -50,3 +58,8 @@ picosat: $(PICOSAT)/makefile
 
 mcts: mcts/mcts.c mcts/mcts.h
 	cd mcts; $(MAKE);
+
+NNetInterface/libNNetInterface.a: NNetInterface/NNetInterface.cpp NNetInterface/NNetInterface.hpp
+	cd NNetInterface/build; cmake -DCMAKE_PREFIX_PATH=/home/jack/Desktop/libtorch/ ..; make;
+	ls;
+	cp NNetInterface/build/libNNetInterface.a NNetInterface/;

@@ -27,6 +27,8 @@ Changes
 #include <cco_ho_inferences.h>
 #include <cte_ho_csu.h>
 
+#include <NNetInterface.hpp>
+
 
 
 /*---------------------------------------------------------------------*/
@@ -1536,11 +1538,13 @@ void ProofStateInit(ProofState_p state, ProofControl_p control)
 
 MCTSNode_p MCTSRoot;
 MCTSNode_p MCTSChosen;
+MCTSNode_p MCTSSimulated;
 
 int StatePipe;
 int ActionPipe;
 int RewardPipe;
 RLProofStateCell rlstate;
+Model criticModel;
 int sync_num;
 
 long long statePipeTimeSpent = 0;
@@ -1570,6 +1574,7 @@ void initRL(){
    printf("Initializing Reinforcement Learning...\n");
    MCTSRoot = makeRoot();
    MCTSChosen = MCTSRoot;
+   criticModel = LoadModel("./critic.pt"); // ASSUMPTION!!! The critic model is in the working directory.
 
    // char* state_pipe_path = (state_pipe_path = getenv("E_RL_STATEPIPE_PATH")) ? state_pipe_path : "/tmp/StatePipe1";
    // char* action_pipe_path = (action_pipe_path = getenv("E_RL_ACTIONPIPE_PATH")) ? action_pipe_path : "/tmp/ActionPipe1";
@@ -1600,6 +1605,22 @@ void sendRLState(RLProofStateCell state){
    timerEnd(start, &statePipeTimeSpent);
 }
 
+Array RLstateToArray(RLProofStateCell state){
+   float* data = (float*) malloc(sizeof(float)*5);
+   // data[0] = state.
+
+   return createArray(data, 5, FLOAT, true);
+}
+
+float invokeCritic(RLProofStateCell state){
+   Array arr = RLstateToArray(state);
+   Array output = RunModel(criticModel, arr);
+   float evaluation = arrayItem(output).f;
+   freeArray(arr);
+   freeArray(output);
+   return evaluation;
+}
+
 
 int recvRLAction(ProofState_p state){
    long long start = timerStart();
@@ -1625,39 +1646,40 @@ int recvRLAction(ProofState_p state){
 
    // int action = rand() % 75;
 
-   int action = MCTSSearch(MCTSChosen, 200);
+   int action;
    if (MCTS_SIM){
+
+      // Turn off stdout for simulator...
       OutputLevel = 0;
 
+      // If eprover encounters its CPU_LIMIT, then we need to stop.
       if (TimeIsUp){
-         float simValue = -1.0 * state->unprocessed->members / 100.0;
+         float simValue = invokeCritic(rlstate);
          write(MCTS_PIPE[1], &simValue, sizeof(float));
          exit(0);
       }
 
-      // What node am I simulating?...
-      MCTSNode_p node = Selection(MCTSChosen);
-
       // Pick action according to state.
-      if (MCTS_SIM_TIME < node->state->len){
-         action = node->state->cef_choices[MCTS_SIM_TIME];
+      if (MCTS_SIM_STEPS < MCTSSimulated->state->len){
+         action = MCTSSimulated->state->cef_choices[MCTS_SIM_STEPS];
       }
 
       // If at the end of state, then simulate for a while.
-      else if (MCTS_SIM_TIME < MAX_STATE_LEN){
-         action = rand() % 75;
+      else if (MCTS_SIM_STEPS < MAX_STATE_LEN){
+         action = rand() % AvailableActions(MCTSSimulated); // INCORRECT!!! but fine for now becuase it's a constant...
       }
 
       // If done simulating, write to pipe :)
       else{
-         float simValue = -1.0 * state->unprocessed->members / 100.0;
+         float simValue = invokeCritic(rlstate);
          write(MCTS_PIPE[1], &simValue, sizeof(float));
          exit(0);
       }
 
-      MCTS_SIM_TIME++;
+      MCTS_SIM_STEPS++;
    }
    else{
+      action = MCTSSearch(MCTSChosen, 200);
       MCTSChosen = MCTSChosen->children[action];
       MCTSStateShift(MCTSChosen);
       // printf("Received MCTS Action: %d\n", action);

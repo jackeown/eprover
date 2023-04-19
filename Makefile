@@ -43,7 +43,7 @@ depend:
 
 remove_links:
 	@if [ -d include ]; then\
-		cd include; rm -f *.h;\
+		cd include; rm -f *.h *.hpp;\
 	fi;
 	@if [ -d lib ]; then\
 		cd lib;     rm -f *.a;\
@@ -119,6 +119,7 @@ top: E
 links: remove_links
 	@mkdir -p include
 	@cd include; find .. -not -path '../include/*' -name "[^.]*.h" -exec $(LN) {} \;
+	@cd include; find .. -not -path '../include/*' -name "[^.]*.hpp" -exec $(LN) {} \;
 	@mkdir -p lib
 #	@cd lib;find .. -not -path '../lib/*' -name "[^.]*.a" -exec $(LN) {} \;
 	@cd lib;\
