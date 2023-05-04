@@ -38,6 +38,8 @@
 #include <ccl_pred_elim.h>
 #include <sys/mman.h>
 
+#include "mcts.h"
+
 
 /*---------------------------------------------------------------------*/
 /*                  Data types                                         */
@@ -1056,6 +1058,11 @@ int main(int argc, char* argv[])
       ClauseFree(success);
    }
    fflush(GlobalOut);
+
+   // Simulation is ended successfully! Yay!
+   if (MCTS_SIM){
+      endSimulation(1.0);
+   }
 
    print_proof_stats(proofstate,
                      parsed_ax_no,

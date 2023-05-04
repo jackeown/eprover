@@ -56,6 +56,8 @@ long long actionPipeTimeSpent = 0;
 long long rewardPipeTimeSpent = 0;
 long long statePrepTimeSpent = 0;
 
+bool smartPhaseKilled = false;
+
 
 
 /*---------------------------------------------------------------------*/
@@ -185,7 +187,6 @@ static long remove_subsumed(GlobalIndices_p indices,
       ClauseSetProp(handle, CPIsDead);
       ClauseSetInsert(archive, handle);
    }
-   printf("F\n");
    PStackFree(stack);
    return res;
 }
@@ -1629,11 +1630,11 @@ void timerEnd(long long startTime, long long* destination){
 
 
 
-void initRL(ProofState_p state){
+void initRL(){
    printf("Initializing Reinforcement Learning...\n");
    MCTSRoot = makeRoot();
    MCTSChosen = MCTSRoot;
-   criticModel = LoadModel("./critic.pt"); // ASSUMPTION!!! The critic model is in the working directory.
+   criticModel = LoadModel("./critic.torchscript"); // ASSUMPTION!!! The critic model is in the working directory.
 
    // char* state_pipe_path = (state_pipe_path = getenv("E_RL_STATEPIPE_PATH")) ? state_pipe_path : "/tmp/StatePipe1";
    // char* action_pipe_path = (action_pipe_path = getenv("E_RL_ACTIONPIPE_PATH")) ? action_pipe_path : "/tmp/ActionPipe1";
@@ -1655,7 +1656,7 @@ void initRL(ProofState_p state){
    rlstate.numUnprocessed = 0;
    rlstate.processedWeightSum = 0;
    rlstate.unprocessedWeightSum = 0;
-   rlstate.state = state;
+   // rlstate.state = state; // not feasible because eprover.c does not have access to the state yet.
 
    rl_weight_tracking = ClauseSetAlloc();
 }
@@ -1724,9 +1725,19 @@ void sendRLState(RLProofStateCell state){
    timerEnd(start, &statePipeTimeSpent);
 }
 
+
+// Have to remember to also do the state normalization.
 Array RLstateToArray(RLProofStateCell state){
    float* data = (float*) malloc(sizeof(float)*5);
-   // data[0] = state.
+
+   // Current python normalization code...
+   //  s = state / torch.tensor([40_000, 9_000, 1_300_000, 100, 200], dtype=torch.float)
+
+   data[0] = (float) state.numEverProcessed / 40000.0;
+   data[1] = (float) state.numProcessed / 9000.0;
+   data[2] = (float) state.numUnprocessed / 1300000.0;
+   data[3] = (float) ((state.processedWeightSum / (float) state.numProcessed) / 100.0);
+   data[4] = (float) ((state.unprocessedWeightSum / (float) state.numUnprocessed) / 200.0);
 
    return createArray(data, 5, FLOAT, true);
 }
@@ -1735,9 +1746,18 @@ float invokeCritic(RLProofStateCell state){
    Array arr = RLstateToArray(state);
    Array output = RunModel(criticModel, arr);
    float evaluation = arrayItem(output).f;
-   freeArray(arr);
-   freeArray(output);
+   // freeArray(arr);
+   // freeArray(output);
+
+   // Dangerous not to free, but it was causing issues and it's probably fine 
+   // because it's only 5 floats and it's not like we're running out of memory
+   // and it's not like we're going to be running this for a long time
+   // so it's probably fine.
+   // ^^^^ Rationalization provided by Copilot lol
+
    return evaluation;
+
+   // return 10.0 - (state.numUnprocessed / 100.0);
 }
 
 
@@ -1760,50 +1780,74 @@ int recvRLAction(){
 
    // int action = rand() % 20;
 
+
+   bool InSmartPhase = (rlstate.numEverProcessed > 0 && rlstate.numEverProcessed < 100) && !smartPhaseKilled;
+
+   int numSimulations = 100;
+
    int action;
+   if (!MCTS_SIM && InSmartPhase){
+      action = MCTSSearch(MCTSChosen, numSimulations);
+      printf("After search...\n");
+   }
+
    if (MCTS_SIM){
+      printf("Child recvRLAction\n");
 
       // Turn off stdout for simulator...
-      OutputLevel = 0;
+      // OutputLevel = 0;
 
+      // phase=1 means we are in the smart phase, phase=2 means we are in the random phase, phase=3 means we are done.
+      int phase = MCTS_SIM_STEPS < MCTSSimulated->state->len ? 1 : (MCTS_SIM_STEPS < MAX_STATE_LEN ? 2 : 3);
+      
       // If eprover encounters its CPU_LIMIT, then we need to stop.
-      if (TimeIsUp){
-         float simValue = invokeCritic(rlstate);
-         write(MCTS_PIPE[1], &simValue, sizeof(float));
-         exit(0);
+      if (TimeIsUp || phase == 3){
+         endSimulation(invokeCritic(rlstate));
       }
+
 
       // Pick action according to state.
-      if (MCTS_SIM_STEPS < MCTSSimulated->state->len){
+      else if (phase == 1){
          action = MCTSSimulated->state->cef_choices[MCTS_SIM_STEPS];
       }
-
       // If at the end of state, then simulate for a while.
-      else if (MCTS_SIM_STEPS < MAX_STATE_LEN){
+      else if (phase == 2){
          action = rand() % AvailableActions(MCTSSimulated); // INCORRECT!!! but fine for now becuase it's a constant...
       }
-
-      // If done simulating, write to pipe :)
       else{
-         float simValue = invokeCritic(rlstate);
-         write(MCTS_PIPE[1], &simValue, sizeof(float));
-         exit(0);
+         printf("ERROR: Should not be here\n");
+         exit(1);
       }
 
       MCTS_SIM_STEPS++;
    }
    else{
-      action = MCTSSearch(MCTSChosen, 200);
-      MCTSChosen = MCTSChosen->children[action];
-      MCTSStateShift(MCTSChosen);
-      // printf("Received MCTS Action: %d\n", action);
-      // printf("MCTS Action Score   : %f\n", MCTSChosen->totalReward / MCTSChosen->numVisits);
+      printf("Parent recvRLAction\n");
+
+      if(InSmartPhase){
+         MCTSChosen = MCTSChosen->children[action];
+         MCTSStateShift(MCTSChosen);
+
+         float proofProb = MCTSChosen->totalReward / MCTSChosen->numVisits;
+         printf("MCTS Info   : %f, %d, %f\n", MCTSChosen->totalReward , MCTSChosen->numVisits, proofProb);
+         printf("Received MCTS Action: %d\n", action);
+         
+         if (proofProb > 0.95 && MCTSChosen->numVisits > (numSimulations * 0.5)){
+            printf("Proof likely!: Let's go fast\n");
+            smartPhaseKilled = true;
+         }
+
+      }
+      else{
+         printf("Random action\n");
+         action = rand() % AvailableActions(MCTSChosen);
+      }
    }
 
    timerEnd(start, &actionPipeTimeSpent);
 
+   // printf("Action received: %d\n", action);
    return action;
-   // return 3;
 }
 
 
@@ -1886,13 +1930,13 @@ Clause_p ProcessClause(ProofState_p state, ProofControl_p control,
 {
 
 
-   // printf("Number of CEFs: %d\n", control->hcb->wfcb_no);
+   printf("Number of CEFs: %d\n", control->hcb->wfcb_no);
    Clause_p         clause, resclause, tmp_copy, empty, arch_copy = NULL;
    FVPackedClause_p pclause;
    SysDate          clausedate;
    static bool first_time = true;
 
-   int trackingWhich = 2;
+   // int trackingWhich = 2;
 
    state->RLTimeSpent_statePipe = statePipeTimeSpent;
    state->RLTimeSpent_actionPipe = actionPipeTimeSpent;
@@ -1959,7 +2003,7 @@ Clause_p ProcessClause(ProofState_p state, ProofControl_p control,
       printf("CEF Choice: %lu\n", action);
       printf("Given Clause: ");
       ClausePrint(stdout, clause, true);
-      printf("\nSet given_clause_selection_index to %d\n", clause->given_clause_selection_index);
+      printf("\nSet given_clause_selection_index to %ld\n", clause->given_clause_selection_index);
    }
 
    if(!clause)
@@ -1990,11 +2034,11 @@ Clause_p ProcessClause(ProofState_p state, ProofControl_p control,
    if(ProofObjectRecordsGCSelection)
    {
       printf("\nArchiving clause...\n");
-      printf("Before: %d\n", clause->given_clause_selection_index);
+      printf("Before: %ld\n", clause->given_clause_selection_index);
       arch_copy = ClauseArchiveCopy(state->archive, clause);
       // printf("After: %d\n", arch_copy->given_clause_selection_index);
       ClausePrint(stdout, state->archive->anchor->pred, true);
-      printf("After: %d\n", state->archive->anchor->pred->given_clause_selection_index);
+      printf("After: %ld\n", state->archive->anchor->pred->given_clause_selection_index);
       // PrintArchive(state);
    }
 

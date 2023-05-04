@@ -1,0 +1,2 @@
+/usr/bin/ar qc libNNetInterface.a CMakeFiles/NNetInterface.dir/NNetInterface.cpp.o
+/usr/bin/ranlib libNNetInterface.a

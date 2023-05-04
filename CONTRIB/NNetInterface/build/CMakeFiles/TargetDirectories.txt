@@ -1,0 +1,3 @@
+/home/jack/eprover/CONTRIB/NNetInterface/build/CMakeFiles/NNetInterface.dir
+/home/jack/eprover/CONTRIB/NNetInterface/build/CMakeFiles/edit_cache.dir
+/home/jack/eprover/CONTRIB/NNetInterface/build/CMakeFiles/rebuild_cache.dir
