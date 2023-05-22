@@ -13,6 +13,12 @@ using namespace std;
 
 
 
+extern time_t time_after_conversion_to_tensor;
+extern time_t time_after_critic_running;
+extern time_t time_after_conversion_to_array;
+long myGetTime();
+
+
 torch::Tensor ArrayToTensor(Array arr) {
     // Determine the shape of the tensor
     std::vector<int64_t> shape;
@@ -125,22 +131,19 @@ Model LoadModel(char* path){
 Array RunModel(Model net, Array ndarray){
     Module module = *((Module*)net);
 
-    printf("Array to Tensor...\n");
     std::vector<torch::jit::IValue> inputs;
     torch::Tensor X = ArrayToTensor(ndarray);
     inputs.push_back(X);
 
-    cout << "Before cout..." << endl;
-    cout << inputs << endl;
-    cout << "After cout..." << endl;
+    time_after_conversion_to_tensor = myGetTime();
 
-    cout << "Running model..." << endl;
     // Execute the model and turn its output into a tensor.
     at::Tensor output = module.forward(inputs).toTensor();
+    time_after_critic_running = myGetTime();
 
-    cout << "After running the model..." << endl;
     Array out = TensorToArray(output);
-    cout << "After conversion to array..." << endl;
+    time_after_conversion_to_array = myGetTime();
+
     return out;
 }
 

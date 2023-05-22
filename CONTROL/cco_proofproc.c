@@ -1743,9 +1743,27 @@ Array RLstateToArray(RLProofStateCell state){
 }
 
 float invokeCritic(RLProofStateCell state){
+   time_before_critic = myGetTime();
    Array arr = RLstateToArray(state);
-   Array output = RunModel(criticModel, arr);
-   float evaluation = arrayItem(output).f;
+   time_after_making_array = myGetTime();
+
+   // Array output = RunModel(criticModel, arr);
+   
+   // float evaluation = arrayItem(output).f;
+
+
+   time_after_conversion_to_tensor = myGetTime();
+   time_after_critic_running = myGetTime();
+   time_after_conversion_to_array = myGetTime();
+
+   float evaluation = -1*(
+      ((float*)arr.data)[0] + 
+      ((float*)arr.data)[1] + 
+      ((float*)arr.data)[2] + 
+      ((float*)arr.data)[3] + 
+      ((float*)arr.data)[4]
+   );
+
    // freeArray(arr);
    // freeArray(output);
 
@@ -1782,8 +1800,7 @@ int recvRLAction(){
 
 
    bool InSmartPhase = (rlstate.numEverProcessed > 0 && rlstate.numEverProcessed < 100) && !smartPhaseKilled;
-
-   int numSimulations = 100;
+   int numSimulations = 150;
 
    int action;
    if (!MCTS_SIM && InSmartPhase){
@@ -1805,7 +1822,6 @@ int recvRLAction(){
          endSimulation(invokeCritic(rlstate));
       }
 
-
       // Pick action according to state.
       else if (phase == 1){
          action = MCTSSimulated->state->cef_choices[MCTS_SIM_STEPS];
@@ -1819,6 +1835,7 @@ int recvRLAction(){
          exit(1);
       }
 
+      GCS_Times[MCTS_SIM_STEPS] = myGetTime();
       MCTS_SIM_STEPS++;
    }
    else{
@@ -1836,7 +1853,6 @@ int recvRLAction(){
             printf("Proof likely!: Let's go fast\n");
             smartPhaseKilled = true;
          }
-
       }
       else{
          printf("Random action\n");
