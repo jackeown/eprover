@@ -449,11 +449,11 @@ int main(int argc, char* argv[])
 
    OpenGlobalOut(outname);
    print_info();
-   if(print_strategy)
-   {
-      HeuristicParmsPrint(stdout, h_parms);
-      exit(NO_ERROR);
-   }
+//    if(print_strategy)
+//    {
+//       HeuristicParmsPrint(stdout, h_parms);
+//       exit(NO_ERROR);
+//    }
 
    if(parse_strategy_filename)
    {
@@ -519,6 +519,12 @@ int main(int argc, char* argv[])
       }
       CLStateFree(state);
       state = process_options(argc, argv); // refilling the h_parms with user options
+   }
+
+   if(print_strategy)
+   {
+      HeuristicParmsPrint(stdout, h_parms);
+      exit(NO_ERROR);
    }
 
 
