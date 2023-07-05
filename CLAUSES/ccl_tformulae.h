@@ -62,6 +62,9 @@ typedef Term_p TFormula_p;
    (((form)->f_code == (sig)->eqn_code || (form)->f_code == (sig)->neqn_code) &&\
    ((form)->arity == 2))
 
+#define TFormulaIsComplexBool(sig, form) (!TermIsAnyVar(form) &&        \
+                                          SigIsLogicalSymbol(sig, (form)->f_code) && \
+                                          TypeIsBool(form))
 
 bool TFormulaIsPropConst(Sig_p sig, TFormula_p form, bool positive);
 
@@ -74,7 +77,7 @@ TFormula_p TFormulaLitAlloc(Eqn_p literal);
 TFormula_p TFormulaPropConstantAlloc(TB_p bank, bool positive);
 TFormula_p TFormulaQuantorAlloc(TB_p bank, FunCode quantor, Term_p var, TFormula_p arg);
 void       TFormulaTPTPPrint(FILE* out, TB_p bank, TFormula_p form, bool fullterms, bool pcl);
-void       TFormulaFOOLPrint(FILE* out, Sig_p sig, TFormula_p form);
+//void       TFormulaFOOLPrint(FILE* out, Sig_p sig, TFormula_p form);
 TFormula_p TFormulaTPTPParse(Scanner_p in, TB_p terms);
 TFormula_p TFormulaTSTPParse(Scanner_p in, TB_p terms);
 TFormula_p TcfTSTPParse(Scanner_p in, TB_p terms);

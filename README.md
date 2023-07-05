@@ -1,5 +1,5 @@
 # THIS IS MY OWN FORK OF E.
-## This is meant to mirror the original repo with an added heuristic for integration with PyTorch models via interprocess communication.
+## This is meant to mirror the original repo with added RL support
 
 
 

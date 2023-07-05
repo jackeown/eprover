@@ -913,7 +913,7 @@ EqnSide ClauseIsEqDefinition(Clause_p clause, int min_arity)
 //
 // Function: ClauseExtractHODefinition()
 //
-//   Given a 
+//   Given a
 //
 // Global Variables: -
 //
@@ -1312,6 +1312,10 @@ void ClausePrintLOPFormat(FILE* out, Clause_p clause, bool fullterms)
 
 void ClausePrint(FILE* out, Clause_p clause, bool fullterms)
 {
+   if(out == stderr)
+   {
+      fprintf(stderr, "ClausePrint(stderr,...)\n");
+   }
 
    /* fprintf(out, "(%ld, %ld)", clause->proof_depth,
       clause->proof_size); */
@@ -1356,7 +1360,7 @@ void ClausePrint(FILE* out, Clause_p clause, bool fullterms)
 
 void ClausePrintDBG(FILE* out, Clause_p clause)
 {
-   fprintf(out, "thf(cl%ld, plain, ", 
+   fprintf(out, "thf(cl%ld, plain, ",
            clause->ident >= 0 ? clause->ident : clause->ident-LONG_MIN);
    if(clause->literals)
    {
@@ -2622,7 +2626,7 @@ bool ClauseRecognizeChoice(IntMap_p choice_symbols_map, Clause_p cl)
 
    Eqn_p pos_lit =
       EqnIsPositive(cl->literals) ? cl->literals : cl->literals->next;
-   Eqn_p neg_lit = 
+   Eqn_p neg_lit =
       EqnIsNegative(cl->literals) ? cl->literals : cl->literals->next;
    assert(EqnIsPositive(pos_lit));
    assert(EqnIsNegative(neg_lit));
@@ -2631,9 +2635,9 @@ bool ClauseRecognizeChoice(IntMap_p choice_symbols_map, Clause_p cl)
    FAIL_ON(EqnIsEquLit(neg_lit));
 
    TB_p bank = pos_lit->bank;
-   Term_p neg_term = 
+   Term_p neg_term =
       BetaNormalizeDB(bank, LambdaEtaReduceDB(bank, neg_lit->lterm));
-   Term_p pos_term = 
+   Term_p pos_term =
       BetaNormalizeDB(bank, LambdaEtaReduceDB(bank, pos_lit->lterm));
 
    FAIL_ON(!TermIsAppliedFreeVar(neg_term));
