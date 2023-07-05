@@ -231,15 +231,13 @@ typedef Term_p (*TermMapper_p)(void*, Term_p);
 /*                Exported Functions and Variables                     */
 /*---------------------------------------------------------------------*/
 
-/* Functions which take two terms and return a boolean, i.e. test for
-   equality */
-
 #define TERMS_INITIAL_ARGS 10
 
 #define RewriteAdr(level) (assert(level),(level)-1)
 #define TermIsFreeVar(t) ((t)->f_code < 0)
 #define TermIsConst(t)(!TermIsAnyVar(t) && ((t)->arity==0))
 #define TermHasEqNeq(t)(QueryProp((t), (TPHasEqNeqSym)))
+
 #ifdef ENABLE_LFHO
 #define TermIsDBVar(term) (QueryProp((term), (TPIsDBVar)))
 #define TermHasBoolSubterm(t)(QueryProp((t), (TPHasBoolSubterm)))
@@ -285,6 +283,7 @@ typedef Term_p (*TermMapper_p)(void*, Term_p);
 #define TermHasAppVar(term) (false)
 #define TermIsPhonyAppTarget(term) (false)
 #endif
+
 #define TermIsTopLevelFreeVar(term) (TermIsFreeVar(term) || TermIsAppliedFreeVar(term))
 #define TermIsTopLevelDBVar(term) (TermIsDBVar(term) || TermIsAppliedDBVar(term))
 #define TermIsTopLevelAnyVar(term)  (TermIsAnyVar(term) || TermIsAppliedAnyVar(term))
@@ -371,6 +370,10 @@ void    TermStackDelProps(PStack_p stack, TermProperties prop);
 #define TermSetCache(t,c)  ((t)->binding_cache = (c))
 #define TermGetBank(t)     ((t)->owner_bank)
 #define TermSetBank(t,b)   ((t)->owner_bank = (b))
+Term_p TermFindUnownedSubterm(Term_p term);
+#define DBGTermCheckUnownedSubterm(out, t, location)     \
+   DBGTermCheckUnownedSubtermReal((out), (t), (location))
+void DBGTermCheckUnownedSubtermReal(FILE* out, Term_p t, char* location);
 
 #define TermIsBetaReducible(t) TermCellQueryProp((t), TPIsBetaReducible)
 #define TermIsEtaReducible(t)  TermCellQueryProp((t), TPIsEtaReducible)
@@ -378,7 +381,9 @@ void    TermStackDelProps(PStack_p stack, TermProperties prop);
 #define TermGetCache(t)    (UNUSED(t), NULL)
 #define TermSetCache(t,c)  (UNUSED(t), UNUSED(c), UNUSED(NULL))
 #define TermGetBank(t)     (UNUSED(t), NULL)
-#define TermSetBank(t,b)   (UNUSED(t), UNUSED(b), UNUSED(NULL))
+#define TermFindUnownedSubterm(t) (UNUSED(t), NULL)
+#define DBGTermCheckUnownedSubterm(f, t, l) (UNUSED(f), UNUSED(t), UNUSED(l))
+#define TermSetBank(t,b)   (UNUSED(t), UNUSED(b), NULL)
 #define TermIsBetaReducible(t) false
 #define TermIsEtaReducible(t)  false
 #endif
@@ -393,49 +398,7 @@ void    TermStackDelProps(PStack_p stack, TermProperties prop);
 Term_p applied_var_deref(Term_p orig);
 #endif
 
-/*-----------------------------------------------------------------------
-//
-// Function: GetHeadType()
-//
-//   Returns the type of the head term symbol.
-//
-// Global Variables: -
-//
-// Side Effects    : -
-//
-/----------------------------------------------------------------------*/
 
-static inline Type_p GetHeadType(Sig_p sig, Term_p term)
-{
-   if(term->f_code == SIG_ITE_CODE)
-   {
-      assert(term->arity==3);
-      return term->type;
-   }
-   else if(term->f_code == SIG_LET_CODE)
-   {
-      return term->type;
-   }
-#ifdef ENABLE_LFHO
-   else if(TermIsAppliedAnyVar(term))
-   {
-      assert(!sig || term->f_code == SIG_PHONY_APP_CODE);
-      return term->args[0]->type;
-   }
-   else if(TermIsAnyVar(term) || TermIsLambda(term))
-   {
-      assert(!TermIsAnyVar(term) || term->arity == 0);
-      return term->type;
-   }
-   else
-   {
-      assert(term->f_code != SIG_PHONY_APP_CODE);
-      return SigGetType(sig, term->f_code);
-   }
-#else
-   return SigGetType(sig, term->f_code);
-#endif
-}
 
 /*-----------------------------------------------------------------------
 //

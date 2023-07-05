@@ -33,7 +33,7 @@
 /*                    Data type declarations                           */
 /*---------------------------------------------------------------------*/
 
-/* For sorting objects by a float key: */
+/* For sorting objects by a (double)float key: */
 
 typedef struct
 {
@@ -61,12 +61,23 @@ typedef enum
    PRGaveUp
 }ProverResult;
 
+typedef enum {
+   PROBLEM_NOT_INIT = -1,
+   PROBLEM_FO,
+   PROBLEM_HO
+} ProblemType;
+
+extern ProblemType problemType;
+
 
 /*---------------------------------------------------------------------*/
 /*                Exported Functions and Variables                     */
 /*---------------------------------------------------------------------*/
 
 #define MAXINDENTSPACES 72
+
+
+int StrDistance(const char* a, const char* b);
 
 #define WeightedObjectArrayAlloc(number) \
         SecureMalloc(number * sizeof(WeightedObjectCell))

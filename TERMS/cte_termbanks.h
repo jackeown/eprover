@@ -22,8 +22,6 @@
   See the file COPYING in the main E directory for details..
   Run "eprover -h" for contact information.
 
-  Changes
-
   Created: Mon Sep 22 00:15:39 MET DST 1997
 
   -----------------------------------------------------------------------*/
@@ -53,7 +51,7 @@ typedef struct tbcell
    Sig_p         sig;            /* Store sig info */
    VarBank_p     vars;           /* Information about (shared) variables */
    DBVarBank_p   db_vars;        /* de Bruijn (shared) variable bank
-                                    All the de Bruijn variables 
+                                    All the de Bruijn variables
                                     are requested from here. */
    Term_p        true_term;      /* Pointer to the special term with the
                                     $true constant. */
@@ -62,12 +60,6 @@ typedef struct tbcell
    PDArray_p      min_terms;     /* A small (ideally the minimal
                                     possible) term, to be used for RHS
                                     instantiation for each sort. */
-   unsigned long rewrite_steps;  /* How many calls to TBTermReplace? */
-   //VarSetStore_p freevarsets;    /* Associates a term (or Tformula)
-                                   /* with the set of its free
-                                  * variables. Only initalized for
-                                  * specific operations and then reset
-                                  * again */
    TermProperties garbage_state; /* For the mark-and sweep garbage
                                     collection. This is flipped at
                                     each sweep, and all new term cell

@@ -629,12 +629,14 @@ static TFormula_p applied_tform_tstp_parse(Scanner_p in, TB_p terms, TFormula_p 
 {
    assert(TestInpTok(in, Application));
 
+   // printf("applied_tform_tstp_parse()...\n");
    const Type_p hd_type = GetHeadType(terms->sig, head);
    assert(hd_type);
    const int max_args = TypeGetMaxArity(hd_type);
    int i = 0;
    const TermRef args = TermArgTmpArrayAlloc(max_args);
-   bool head_is_logical = !TermIsFreeVar(head) && SigQueryFuncProp(terms->sig, head->f_code, FPFOFOp);
+   bool head_is_logical = !TermIsFreeVar(head) &&
+      SigQueryFuncProp(terms->sig, head->f_code, FPFOFOp);
    Term_p arg;
 
 
@@ -642,12 +644,12 @@ static TFormula_p applied_tform_tstp_parse(Scanner_p in, TB_p terms, TFormula_p 
    {
       if(i >= max_args)
       {
-         fprintf(stderr, "max args: %d\n", max_args);
-         fprintf(stderr, "type: ");
-         TypePrintTSTP(stderr, terms->sig->type_bank, hd_type);
-         TermPrintDbg(stderr, head, terms->sig, DEREF_NEVER);
-         AktTokenError(in, " Too many arguments applied to the symbol",
-                       SYNTAX_ERROR);
+         //fprintf(stderr, "max args: %d\n", max_args);
+         //fprintf(stderr, "type: ");
+         //TypePrintTSTP(stderr, terms->sig->type_bank, hd_type);
+         //TermPrintDbg(stderr, head, terms->sig, DEREF_NEVER);
+         AktTokenError(in, " Too many arguments applied to the term",
+                       false);
       }
       AcceptInpTok(in, Application);
       arg = literal_tform_tstp_parse(in, terms);
@@ -657,6 +659,7 @@ static TFormula_p applied_tform_tstp_parse(Scanner_p in, TB_p terms, TFormula_p 
    TFormula_p res =
       EncodePredicateAsEqn(terms, normalize_head(head, args, i, terms));
    TermArgTmpArrayFree(args, max_args);
+   // printf("...applied_tform_tstp_parse()\n");
    return res;
 }
 
@@ -872,8 +875,8 @@ static Term_p lambda_eq_to_forall(TB_p terms, Term_p t)
       t = NULL;
    }
    else if((t->f_code == sig->eqn_code
-       || t->f_code == sig->neqn_code)
-      && t->arity == 2)
+            || t->f_code == sig->neqn_code)
+           && t->arity == 2)
    {
       if((TermIsLambda(t->args[0]) || TermIsLambda(t->args[1])))
       {
@@ -901,7 +904,7 @@ static Term_p lambda_eq_to_forall(TB_p terms, Term_p t)
 
             t = TFormulaFCodeAlloc(terms,
                                    t->f_code == sig->eqn_code
-                                        ? sig->equiv_code : sig->xor_code,
+                                   ? sig->equiv_code : sig->xor_code,
                                    EncodePredicateAsEqn(terms, lhs),
                                    EncodePredicateAsEqn(terms, rhs));
          }
@@ -911,7 +914,7 @@ static Term_p lambda_eq_to_forall(TB_p terms, Term_p t)
          }
 
          bool universal = t->f_code == sig->eqn_code
-                           || t->f_code == sig->equiv_code;
+            || t->f_code == sig->equiv_code;
          while(!PStackEmpty(fresh_vars))
          {
             t = TFormulaAddQuantor(terms, t, universal, PStackPopP(fresh_vars));
@@ -977,6 +980,7 @@ WFormula_p find_generalization(PDTree_p liftings, Term_p query, TermRef name)
       {
          *name = candidate;
          res = pos->data;
+         DBGTermCheckUnownedSubterm(stdout, res->tformula, "find_generalization");
       }
       else
       {
@@ -1115,7 +1119,8 @@ Term_p lift_lambda(TB_p terms, PStack_p bound_vars, Term_p body,
    for(long i=0; i<PStackGetSP(bound_vars); i++)
    {
       Type_p fresh_ty = ((Term_p)PStackElementP(bound_vars,i))->type;
-      PStackPushP(bound_to_fresh, VarBankGetFreshVar(terms->vars, fresh_ty));
+      Term_p tmp = VarBankGetFreshVar(terms->vars, fresh_ty);
+      PStackPushP(bound_to_fresh, tmp);
    }
 
    IntMap_p loosely_bound_to_fresh = IntMapAlloc();
@@ -1186,8 +1191,8 @@ Term_p lift_lambda(TB_p terms, PStack_p bound_vars, Term_p body,
       if(TypeIsBool(body->type))
       {
          def_f = TFormulaFCodeAlloc(terms, terms->sig->equiv_code,
-                                 EncodePredicateAsEqn(terms, repl_lhs),
-                                 EncodePredicateAsEqn(terms, repl_rhs));
+                                    EncodePredicateAsEqn(terms, repl_lhs),
+                                    EncodePredicateAsEqn(terms, repl_rhs));
       }
       else
       {
@@ -1198,7 +1203,7 @@ Term_p lift_lambda(TB_p terms, PStack_p bound_vars, Term_p body,
       {
          def_f = TFormulaAddQuantor(terms, def_f, true, repl_lhs->args[i]);
       }
-
+      DBGTermCheckUnownedSubterm(stdout, def_f, "lift_lambda(def)");
       WFormula_p def = WTFormulaAlloc(terms, def_f);
       DocFormulaCreationDefault(def, inf_fof_intro_def, NULL, NULL);
       WFormulaPushDerivation(def, DCIntroDef, NULL, NULL);
@@ -1218,7 +1223,7 @@ Term_p lift_lambda(TB_p terms, PStack_p bound_vars, Term_p body,
    IntMapFree(loosely_bound_to_fresh);
    PStackFree(free_var_stack);
    PStackFree(bound_to_fresh);
-
+   DBGTermCheckUnownedSubterm(stdout, lifted, "lift_lambdaX");
    return lifted;
 }
 
@@ -2201,7 +2206,9 @@ TFormula_p TFormulaCreateDef(TB_p bank, TFormula_p def_atom, TFormula_p defined,
          assert(false && "Illegal polarity");
          break;
    }
+   // This is correct - the atom is already created with the proper vars
    TermCollectVariables(def_atom, &vars);
+   //TFormulaCollectFreeVars(bank, def_atom, &vars);
    res = TFormulaAddQuantors(bank, res, true, vars);
    PTreeFree(vars);
 
@@ -2510,8 +2517,10 @@ TFormula_p TFormulaNegate(TFormula_p form, TB_p terms)
 TFormula_p LiftLambdas(TB_p terms, TFormula_p t, PStack_p definitions, PDTree_p liftings)
 {
    Term_p res;
+
    PStack_p vars = NULL;
    t = BetaNormalizeDB(terms, t);
+   DBGTermCheckUnownedSubterm(stdout, t, "UnownedLL");
    if(TermIsLambda(t))
    {
       vars = PStackAlloc();
@@ -2540,7 +2549,6 @@ TFormula_p LiftLambdas(TB_p terms, TFormula_p t, PStack_p definitions, PDTree_p 
       res = lift_lambda(terms, vars, res, definitions, liftings);
       PStackFree(vars);
    }
-
    return res;
 }
 

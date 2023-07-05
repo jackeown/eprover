@@ -12,7 +12,7 @@
   Copyright 1998, 1999 by the author.
   This code is released under the GNU General Public Licence and
   the GNU Lesser General Public License.
-  See the file COPYING in the main E directory for details..
+  See the file COPYING in the main E directory for details.
   Run "eprover -h" for contact information.
 
   Created: Sat Jul  5 02:20:53 MET DST 1997 - New
@@ -56,6 +56,8 @@ typedef int ErrorCodes;
 #define OTHER_ERROR           10
 #define INPUT_SEMANTIC_ERROR  11
 #define INTERFACE_ERROR       12
+#define PARENT_REQUEST        13
+
 
 /*---------------------------------------------------------------------*/
 /*                Exported Functions and Variables                     */
@@ -68,18 +70,15 @@ extern char  ErrStr[];
 extern int   TmpErrno;
 extern char* ProgName;
 
-long          GetSystemPageSize(void);
-long long     GetSystemPhysMemory(void);
-
 void          InitError(char* progname);
 void Error(char* message, ErrorCodes ret, ...);
 void SysError(char* message, ErrorCodes ret, ...);
 void          Warning(char* message, ...);
 void          SysWarning(char* message, ...);
+void          ELog(char* message, ...);
 double        GetTotalCPUTime(void);
 double        GetTotalCPUTimeIncludingChildren(void);
 void          PrintRusage(FILE* out);
-void          StrideMemory(char* mem, long size);
 
 bool          TestLetterString(char* to_check, char* options);
 void          CheckOptionLetterString(char* to_check, char* options,

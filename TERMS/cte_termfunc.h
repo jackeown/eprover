@@ -150,6 +150,7 @@ void    TermComputeFunctionRanks(Term_p term, long *rank_array, long *count);
 long    TermCollectPropVariables(Term_p term, PTree_p *tree,
                                  TermProperties prop);
 long    TermCollectVariables(Term_p term, PTree_p *tree);
+long    TermCollectFCodes(Term_p term, NumTree_p *tree);
 
 long    TermCollectGroundTerms(Term_p term, PTree_p *result, bool top_only);
 long    TermAddFunOcc(Term_p term, PDArray_p f_occur, PStack_p res_stack);
@@ -187,6 +188,67 @@ Term_p TrimImplication(Sig_p sig, Term_p f);
 
 /*-----------------------------------------------------------------------
 //
+// Function: GetHeadType()
+//
+//   Returns the type of the head term symbol.
+//
+// Global Variables: -
+//
+// Side Effects    : -
+//
+/----------------------------------------------------------------------*/
+
+static inline Type_p GetHeadType(Sig_p sig, Term_p term)
+{
+   if(term->f_code == SIG_ITE_CODE)
+   {
+      assert(term->arity==3);
+      return term->type;
+   }
+   else if(term->f_code == SIG_LET_CODE)
+   {
+      return term->type;
+   }
+   else if((term->f_code == sig->qex_code) || (term->f_code == sig->qall_code))
+   {
+      return sig->type_bank->bool_type;
+   }
+#ifdef ENABLE_LFHO
+   else if(TermIsAppliedAnyVar(term))
+   {
+      assert(!sig || term->f_code == SIG_PHONY_APP_CODE);
+      return term->args[0]->type;
+   }
+   else if(TermIsAnyVar(term) || TermIsLambda(term))
+   {
+      assert(!TermIsAnyVar(term) || term->arity == 0);
+      return term->type;
+   }
+   else if(term->f_code == SIG_PHONY_APP_CODE)
+   {
+      Term_p head = term->args[0];
+      Type_p head_type = GetHeadType(sig, head);
+      assert(TypeIsArrow(head_type));
+      //printf("# head_type->arity = %d\n", head_type->arity);
+      //printf("# head_type: "); TypePrintTSTP(stdout, sig->type_bank, head_type);
+      //printf("\n");
+      assert(head_type->arity >= 2);
+      Type_p res = TypeBankInsertTypeShared(sig->type_bank, TypeDropFirstArg(head_type));
+      return res;
+   }
+   else
+   {
+      assert(term->f_code != SIG_PHONY_APP_CODE);
+      return SigGetType(sig, term->f_code);
+   }
+#else
+   return SigGetType(sig, term->f_code);
+#endif
+}
+
+
+/*-----------------------------------------------------------------------
+//
 // Function: TermEquivCellAlloc()
 //
 //   Return a pointer to a unshared termcell equivalent to source. If
@@ -203,7 +265,9 @@ static inline Term_p TermEquivCellAlloc(Term_p source, VarBank_p vars)
 {
    if(TermIsFreeVar(source))
    {
-      return VarBankVarAssertAlloc(vars, source->f_code, source->type);
+      Term_p res = VarBankVarAssertAlloc(vars, source->f_code, source->type);
+      //TermSetBank(res, TermGetBank(source));
+      return res;
    }
    else
    {

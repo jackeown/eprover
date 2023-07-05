@@ -1,11 +1,7 @@
-# THIS IS MY OWN FORK OF E.
-## This is meant to mirror the original repo with an added heuristic for integration with PyTorch models via interprocess communication.
+**NOTE**: The CASC ReadMe file with information for the CADE ATP
+System Competition is in `DOC/Readme`.
 
-
-
-**NOTE**: The CASC ReadMe file is in `DOC/Readme`.
-
-Short Installation Instructions for the impatient
+Short Installation Instructions for the Impatient
 =================================================
 
 This assumes that you have GNU tar, sh and gawk in your search path!
@@ -37,15 +33,15 @@ Read the rest of this file and the fine (if incomplete) manual if
 anything fails. There should be a copy of the manual in
 `DOC/eprover.pdf`.
 
-This version or E supports a fragment of higher-order logic called
-lambda-free higher-order logic (LFHOL). To build and test the
-higher-order version, use
+E 3.0 supports (monomorphic) higher-order logic. To build a binary
+that supports higher-order reasoning, use the following:
+
 
 ```sh
   ./configure --enable-ho
   make rebuild
   cd PROVER
-  eprover-ho -h
+  eprover-ho -h | more
 ```
 
 
@@ -55,10 +51,16 @@ The recommended command for running E on the file problem.p is
   eprover --auto --proof-object problem.p
 ```
 
-If you want to try the usually stronger strategy scheduling mode, use
+If you want to try the usually stronger strategy scheduling mode
+(particularly recommended for higher-order problems, use
 
 ```
   eprover --auto-schedule --proof-object problem.p
+```
+
+To use more than one CPU, use something like
+```
+  eprover --auto-schedule=8 --proof-object problem.p
 ```
 
 Replace `eprover` by `eprover-ho` for the higher-order-enabled
@@ -75,7 +77,7 @@ input and output formats via commandline options.
 The Equational Theorem Prover E
 ===============================
 
-This is the README file for version 2.6 "Floral Guranse" of the E
+This is the README file for version 3.0 "Shangri-La" of the E
 equational theorem prover. This version of E is free software, see the
 file COPYING for details about the license and the fact that THERE IS
 NO WARRANTY!
@@ -86,10 +88,10 @@ What is E?
 
 E is an equational theorem prover. That means it is a program that you
 can stuff a mathematical specification (in many-sorted first-order
-logic with equality) and a hypothesisconjecture into, and which will
-then run forever, using up all of your machines resources. Very
-occasionally it will find a proof for the conjecture and tell you so
-;-).
+logic with equality or in polymorphic higher-order logic) and a
+hypothesisconjecture into, and which will then run forever, using up
+all of your machines resources. Very occasionally it will find a proof
+for the conjecture and tell you so ;-).
 
 E has been created and is currently maintained by Stephan Schulz,
 <schulz@eprover.org>, now with the help of several contributors (see
@@ -254,7 +256,9 @@ or
 the prover will try a series of strategies on the problem. It assumes
 a 300 second run time - if you impose a different one externally, it
 is important to let E know via the `--cpu-limit=XXX` option so that it
-can adjust the schedule.
+can adjust the schedule. You can also enable usage of multiple cores
+with the variant `--auto-schedule=n` (where `n` is the number of
+cores), or `--auto-schedule=Auto` to use all available cores.
 
 One of the features of E is the ability to produce semi-readable
 proofs. To use this, type
@@ -290,6 +294,6 @@ information:
 - The input file(s) that lead to the unexpected behaviour
 
 Most bug reports should be send to <schulz@eprover.org>. Bug reports
-with respect to the LFHO-version should be send to
-<petar.vukmirovic2@gmail.com>. Please remember that this is an unpaid
+with respect to the HO-version should be send to
+<jasmin.blanchette@gmail.com>. Please remember that this is an unpaid
 volunteer service ;-).

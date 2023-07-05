@@ -68,7 +68,11 @@ static TokenRepCell token_print_rep[] =
    {FOFEquiv,     "Equivalence/Double arrow ('<=>')"},
    {FOFXor,       "Negated Equivalence/Xor ('<~>')"},
    {FOFNand,      "Nand ('~&')"},
-   {FOFNor,       "Nor ('~|'')"},
+   {FOFNor,       "Nor ('~|')"},
+   {Application,  "Application ('@')",},
+   {LambdaQuantor,"Lambda ('^')",},
+   {LetToken,     "Let ('$let')"},
+   {IteToken,     "Ite ('$ite')"},
    {NoToken,      NULL}
 
 };
@@ -782,7 +786,7 @@ char* DescribeToken(TokenType tok)
    }
    if(!found)
    {
-      DStrAppendStr(res, token_print_rep[0].rep);
+      DStrAppendStr(res, "Unknown token (this should not happen)");
    }
    help = DStrCopy(res);
    DStrFree(res);
@@ -1255,14 +1259,14 @@ void NextToken(Scanner_p in)
 {
    scan_real_token(in);
    in->current = TOKENREALPOS(in->current+1);
-   /*
-     printf("Current token:\n");
-     PrintToken(stdout, AktToken(in));
-     printf("Next token:\n");
-     PrintToken(stdout, LookToken(in,1));
-     printf("SuperNext token:\n");
-     PrintToken(stdout, LookToken(in,2));
-     printf("\n");*/
+
+   /*printf("Current token:\n");
+   PrintToken(stdout, AktToken(in));
+   printf("Next token:\n");
+   PrintToken(stdout, LookToken(in,1));
+   printf("SuperNext token:\n");
+   PrintToken(stdout, LookToken(in,2));
+   printf("\n");*/
 }
 
 

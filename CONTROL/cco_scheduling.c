@@ -143,6 +143,10 @@ void ScheduleTimesInitMultiCore(ScheduleCell sched[], double time_used,
    rlim_t sum=0, tmp, limit, total_limit;
    int allocated_cores = 0;
 
+   //printf("# ScheduleTimesInitMultiCore(X, time_used=%f, time_limit=%f, "
+   //"preprocessing_schedule=%d, *cores=%d, serialize=%d)\n",
+   //time_used, time_limit, preprocessing_schedule, *cores, serialize);
+
    int sched_size = 0;
    while(sched[sched_size].heu_name)
    {
@@ -263,6 +267,8 @@ int ExecuteScheduleMultiCore(ScheduleCell strats[],
                               preproc_schedule, &max_cores, serialize);
 
    i=0;
+
+   signal(SIGTERM, ESigTermSchedHandler);
    do
    {
       while(strats[i].heu_name &&
@@ -276,14 +282,15 @@ int ExecuteScheduleMultiCore(ScheduleCell strats[],
             h_parms->heuristic_name         = strats[i].heu_name;
             h_parms->order_params.ordertype = strats[i].ordering;
             SilentTimeOut = true;
-            signal(SIGQUIT, _catch_and_quit);
-            // EGPCtrlSetFree(procs);
+            //signal(SIGQUIT, _catch_and_quit);
+            EGPCtrlSetFree(procs, false);
             return i; // tells the other scheduling call what is the parent
          }
          else
          {
             EGPCtrlSetAddProc(procs, handle);
-            // fprintf(stderr, "Will run %s(%d) for %ld\n", handle->name, handle->pid, strats[i].time_absolute);
+            // fprintf(stderr, "Will run %s(%d) for %ld\n",
+            // handle->name, handle->pid, strats[i].time_absolute);
          }
          i++;
       }
@@ -303,12 +310,18 @@ int ExecuteScheduleMultiCore(ScheduleCell strats[],
          //{
          //TERMINATE_CHILDREN();
          //}
-         EGPCtrlSetFree(procs);
+         EGPCtrlSetFree(procs, true);
          exit(handle->exit_status);
       }
+      if(SigTermCaught)
+      {
+         EGPCtrlSetFree(procs, true);
+         exit(PARENT_REQUEST);
+      }
    }while(EGPCtrlSetCardinality(procs) || strats[i].heu_name);
+   signal(SIGTERM, SIG_DFL);
 
-   EGPCtrlSetFree(procs);
+   EGPCtrlSetFree(procs, true);
 
    fprintf(GlobalOut, "# Schedule exhausted\n");
    if(print_rusage)

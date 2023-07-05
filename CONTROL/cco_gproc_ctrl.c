@@ -168,6 +168,7 @@ EGPCtrl_p EGPCtrlCreate(char *name, int cores, rlim_t cpu_limit)
 
    if(childpid == 0)
    {  // child process
+      signal(SIGTERM, SIG_DFL);
       dup2(pipefd[1], STDOUT_FILENO);
       close(pipefd[0]);
       close(pipefd[1]);
@@ -300,7 +301,7 @@ EGPCtrlSet_p EGPCtrlSetAlloc(void)
 //
 // Function: EGPCtrlSetFree()
 //
-//   Free an EPCtrlSet(), including the payload.Will clean up the
+//   Free an EPCtrlSet(), including the payload. Will clean up the
 //   processes.
 //
 // Global Variables: -
@@ -309,11 +310,11 @@ EGPCtrlSet_p EGPCtrlSetAlloc(void)
 //
 /----------------------------------------------------------------------*/
 
-void EGPCtrlSetFree(EGPCtrlSet_p junk)
+void EGPCtrlSetFree(EGPCtrlSet_p junk, bool kill_proc)
 {
    while(junk->procs)
    {
-      EGPCtrlSetDeleteProc(junk, junk->procs->val1.p_val);
+      EGPCtrlSetDeleteProc(junk, junk->procs->val1.p_val, kill_proc);
    }
    EGPCtrlSetCellFree(junk);
 }
@@ -379,19 +380,23 @@ EGPCtrl_p EGPCtrlSetFindProc(EGPCtrlSet_p set, int fd)
 //
 /----------------------------------------------------------------------*/
 
-void EGPCtrlSetDeleteProc(EGPCtrlSet_p set, EGPCtrl_p proc)
+void EGPCtrlSetDeleteProc(EGPCtrlSet_p set, EGPCtrl_p proc, bool kill_proc)
 {
    NumTree_p cell;
 
    cell = NumTreeExtractEntry(&(set->procs), proc->fileno);
    if(cell)
    {
-      EGPCtrlCleanup(cell->val1.p_val);
+      if(kill_proc)
+      {
+         EGPCtrlCleanup(cell->val1.p_val);
+      }
       set->cores_reserved -= proc->cores;
       EGPCtrlFree(cell->val1.p_val);
       NumTreeCellFree(cell);
    }
 }
+
 
 
 /*-----------------------------------------------------------------------
@@ -446,6 +451,7 @@ EGPCtrl_p EGPCtrlSetGetResult(EGPCtrlSet_p set)
    int maxfd = 0,i;
    EGPCtrl_p handle, res = NULL;
    struct timeval waittime;
+   int sel_success;
 
    FD_ZERO(&readfds);
    FD_ZERO(&writefds);
@@ -455,39 +461,46 @@ EGPCtrl_p EGPCtrlSetGetResult(EGPCtrlSet_p set)
 
    maxfd = EGPCtrlSetFDSet(set, &readfds);
 
-   select(maxfd+1, &readfds, &writefds, &errorfds, &waittime);
-
-   for(i=0; i<= maxfd && !res; i++)
+   //ELog("Before select (TERM: %d)\n", SigTermCaught);
+   sel_success = select(maxfd+1, &readfds, &writefds, &errorfds, &waittime);
+   //ELog("After select (TERM: %d)\n", SigTermCaught);
+   if(sel_success !=-1)
    {
-      if(FD_ISSET(i, &readfds))
+      for(i=0; i<= maxfd && !res; i++)
       {
-         handle = EGPCtrlSetFindProc(set, i);
-         eof = EGPCtrlGetResult(handle, set->buffer, EGPCTRL_BUFSIZE);
-         if(eof)
+         //ELog("Loop %d\n", i);
+         if(FD_ISSET(i, &readfds))
          {
-            switch(handle->result)
+            //ELog("Readable:\n", i);
+            handle = EGPCtrlSetFindProc(set, i);
+            eof = EGPCtrlGetResult(handle, set->buffer, EGPCTRL_BUFSIZE);
+            if(eof)
             {
-            case PRNoResult:
-                  /* No result (yet) -> should not really happen! */
-                  assert(false);
-                  break;
-            case PRSatisfiable:
-            case PRCounterSatisfiable:
-            case PRTheorem:
-            case PRUnsatisfiable:
-                  res = handle;
-                  //printf("res: %p\n", res);
-                  break;
-            case PRFailure:
-                  /* Process terminates, but no result determined -> Remove it*/
-                  EGPCtrlSetDeleteProc(set, handle);
-                  break;
-            default:
-                  assert(false && "Impossible ProverResult");
+               switch(handle->result)
+               {
+               case PRNoResult:
+                     /* No result (yet) -> should not really happen! */
+                     assert(false);
+                     break;
+               case PRSatisfiable:
+               case PRCounterSatisfiable:
+               case PRTheorem:
+               case PRUnsatisfiable:
+                     res = handle;
+                     //printf("res: %p\n", res);
+                     break;
+               case PRFailure:
+                     /* Process terminates, but no result determined -> Remove it*/
+                     EGPCtrlSetDeleteProc(set, handle, true);
+                     break;
+               default:
+                     assert(false && "Impossible ProverResult");
+               }
             }
          }
       }
    }
+   //ELog("After Loop (TERM: %d)\n", SigTermCaught);
    return res;
 }
 

@@ -190,6 +190,60 @@ __inline__ Term_p applied_var_deref(Term_p orig)
    return res;
 }
 
+/*-----------------------------------------------------------------------
+//
+// Function: TermFindUnownedSubterm()
+//
+//   Check if term has at least one subterm without term->owner_bank
+//   set. At the moment only useful for debugging...
+//
+// Global Variables: -
+//
+// Side Effects    : -
+//
+/----------------------------------------------------------------------*/
+
+Term_p TermFindUnownedSubterm(Term_p term)
+{
+   Term_p res;
+
+   if(!term->owner_bank)
+   {
+      return term;
+   }
+   for(int i=0; i<term->arity; i++)
+   {
+      if((res = TermFindUnownedSubterm(term->args[i])))
+      {
+         return res;
+      }
+   }
+   return NULL;
+}
+
+
+/*-----------------------------------------------------------------------
+//
+// Function: DBGTermCheckUnownedSubtermReal()
+//
+//   Check for unowned subterms, if found, print them with a marker
+//   and a location string.
+//
+// Global Variables: -
+//
+// Side Effects    : -
+//
+/----------------------------------------------------------------------*/
+
+void DBGTermCheckUnownedSubtermReal(FILE* out, Term_p t, char* location)
+{
+   if(TermFindUnownedSubterm(t))
+   {
+      fprintf(out, "# UnknownSubterm(%s): ", location);
+      TermPrint(stdout, t, t->owner_bank->sig, DEREF_NEVER);
+      fprintf(stdout, "\n");
+   }
+}
 
 #endif
 
@@ -801,7 +855,9 @@ bool TermIsPrefix(Term_p cand, Term_p term)
 //
 /----------------------------------------------------------------------*/
 
-__inline__ Term_p MakeRewrittenTerm(Term_p orig, Term_p new, int remaining_orig, struct tbcell* bank)
+__inline__ Term_p MakeRewrittenTerm(Term_p orig, Term_p new,
+                                    int remaining_orig,
+                                    struct tbcell* bank)
 {
    if(remaining_orig)
    {
@@ -824,13 +880,15 @@ __inline__ Term_p MakeRewrittenTerm(Term_p orig, Term_p new, int remaining_orig,
       {
          new_term->args[i] = new->args[i];
       }
-      for(int i=orig->arity - remaining_orig, j=TermIsFreeVar(new) ? 1 : 0; i < orig->arity; i++, j++)
+      for(int i=orig->arity - remaining_orig, j=TermIsFreeVar(new) ? 1 : 0;
+          i < orig->arity;
+          i++, j++)
       {
          new_term->args[j + new->arity] = orig->args[i];
       }
 
       TermSetBank(new_term, bank);
-      
+
       return LambdaNormalizeDB(bank, new_term);
    }
    else

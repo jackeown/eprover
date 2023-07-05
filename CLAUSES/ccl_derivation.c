@@ -70,8 +70,10 @@ char *opids[] =
    PCL_SE,
    PCL_ID_DEF,
    PCL_SC,
+   PCL_EQ_TO_EQ,
    PCL_LL,
    PCL_FU,
+   PCL_LIFT_ITE,
    PCL_EBV,
    /* HO inferences */
    PCL_DYN_CNF,
@@ -127,6 +129,7 @@ char *optheory [] =
    NULL,
    NULL,
    /* Others */
+   NULL,
    NULL,
    NULL,
    NULL,
@@ -511,7 +514,7 @@ bool DerivedInProof(Derived_p derived)
 
 /*-----------------------------------------------------------------------
 //
-// Function: DerivedMarkProof()
+// Function: DerivedSetInProof()
 //
 //   Mark a derived cell as a proof cell.
 //
@@ -544,6 +547,32 @@ void DerivedSetInProof(Derived_p derived, bool in_proof)
       {
          FormulaDelProp(derived->formula, CPIsProofClause);
       }
+   }
+}
+
+
+/*-----------------------------------------------------------------------
+//
+// Function: DerivedCollectFCodes()
+//
+//   Collect all f_codes from the logical clause/formula into
+//   *tree. Return number of new entries found.
+//
+// Global Variables: -
+//
+// Side Effects    : -
+//
+/----------------------------------------------------------------------*/
+
+long DerivedCollectFCodes(Derived_p derived, NumTree_p *tree)
+{
+   if(derived->clause)
+   {
+      return ClauseCollectFCodes(derived->clause, tree);
+   }
+   else
+   {
+      return TermCollectFCodes(derived->formula->tformula, tree);
    }
 }
 
@@ -1071,7 +1100,7 @@ Derived_p DerivedAlloc(void)
 //
 // Function: DerivationStackPCLPrint()
 //
-//   Print a very short description of the derivation for debug 
+//   Print a very short description of the derivation for debug
 //   purposes.
 //
 // Global Variables: -
@@ -2337,6 +2366,36 @@ void DerivationAnalyse(Derivation_p derivation)
    }
 }
 
+/*-----------------------------------------------------------------------
+//
+// Function: DerivationCollectFCodes()
+//
+//   Collect all f_codes from derivation into tree.
+//
+// Global Variables: -
+//
+// Side Effects    : -
+//
+/----------------------------------------------------------------------*/
+
+long DerivationCollectFCodes(Derivation_p derivation, NumTree_p *tree)
+{
+   PStackPointer sp;
+   Derived_p     handle;
+   long          res = 0;
+
+   if(!derivation->ordered)
+   {
+      DerivationTopoSort(derivation);
+   }
+   for(sp=0; sp<PStackGetSP(derivation->ordered_deriv); sp++)
+   {
+      handle = PStackElementP(derivation->ordered_deriv, sp);
+      res += DerivedCollectFCodes(handle, tree);
+   }
+   return res;
+}
+
 
 
 /*-----------------------------------------------------------------------
@@ -2443,7 +2502,13 @@ void DerivationPrintConditional(FILE* out, char* status, Derivation_p derivation
    if(print_derivation == POList)
    {
       fprintf(out, "# SZS output start %s\n", status);
-      SigPrintTypeDeclsTSTP(out, sig);
+      if(sig->typed_symbols)
+      {
+         NumTree_p symbols = NULL;
+         DerivationCollectFCodes(derivation, &symbols);
+         SigPrintTypeDeclsTSTPSelective(out, sig, &symbols);
+         NumTreeFree(symbols);
+      }
       DerivationPrint(GlobalOut, derivation);
       fprintf(out, "# SZS output end %s\n", status);
    }
