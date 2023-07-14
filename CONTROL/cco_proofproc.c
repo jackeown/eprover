@@ -1877,9 +1877,9 @@ Clause_p ProcessClause(ProofState_p state, ProofControl_p control,
    printf("Just before customized_hcb_select...\n");
    clause = customized_hcb_select(control->hcb, state->unprocessed);
 
+   // Setting the given_clause_selection_index so that
+   // it can be printed at the end for training data collection.
    if (clause){
-
-      printf("Way before: %ld\n", clause->given_clause_selection_index);
       if (not_in_presaturation_interreduction){
          if (*(clause->given_clause_selection_index_p) < 0){
             clause->given_clause_selection_index = rlstate.numEverProcessed-1;
@@ -1896,10 +1896,9 @@ Clause_p ProcessClause(ProofState_p state, ProofControl_p control,
    if (not_in_presaturation_interreduction){
       printRLState(rlstate);
       printf("CEF Choice: %lu\n", action);
-      printf("Given Clause: ");
-      ClausePrint(stdout, clause, true);
+      printf("Given Clause: not printing\n");
+      // ClausePrint(stdout, clause, true);
       fflush(stdout);
-      // printf("\nSet given_clause_selection_index to %d\n", clause->given_clause_selection_index);
    }
 
    if(!clause)
