@@ -1690,8 +1690,6 @@ void printRLState(RLProofStateCell state){
    float uweight = (float)state.unprocessedWeightSum / (float)state.numUnprocessed;
    uweight = (isnan(uweight)) ? -1.0 : uweight;
 
-   // printf("uweight = sum / len: %f = %llu / %lu\n", uweight,state.unprocessedWeightSum, state.numUnprocessed);
-   // printf("pweight = sum / len: %f = %llu / %lu\n", pweight,state.processedWeightSum, state.numProcessed);
    printf("RL State: (%lu, %lu, %lu, %f, %f)\n", state.numEverProcessed, state.numProcessed, state.numUnprocessed, pweight, uweight);
 }
 
@@ -1699,7 +1697,6 @@ void sendRLState(RLProofStateCell state){
    long long start = timerStart();
    printf("Sending RL State...\n");
    sync_num++;
-
 
    float pweight = (float)state.processedWeightSum / (float) state.numProcessed;
    pweight = (isnan(pweight)) ? -1.0 : pweight;
@@ -1879,24 +1876,30 @@ Clause_p ProcessClause(ProofState_p state, ProofControl_p control,
 
    printf("Just before customized_hcb_select...\n");
    clause = customized_hcb_select(control->hcb, state->unprocessed);
-   printf("Way before: %ld\n", clause->given_clause_selection_index);
-   if (not_in_presaturation_interreduction){
-      if (*(clause->given_clause_selection_index_p) < 0){
-         clause->given_clause_selection_index = rlstate.numEverProcessed-1;
-         *(clause->given_clause_selection_index_p) = rlstate.numEverProcessed-1;
+
+   if (clause){
+
+      printf("Way before: %ld\n", clause->given_clause_selection_index);
+      if (not_in_presaturation_interreduction){
+         if (*(clause->given_clause_selection_index_p) < 0){
+            clause->given_clause_selection_index = rlstate.numEverProcessed-1;
+            *(clause->given_clause_selection_index_p) = rlstate.numEverProcessed-1;
+         }
+      }
+      else{
+         clause->given_clause_selection_index = -2;
+         *(clause->given_clause_selection_index_p) = -2;
       }
    }
-   else{
-      clause->given_clause_selection_index = -2;
-      *(clause->given_clause_selection_index_p) = -2;
-   }
    
+   // For grepping out by python...
    if (not_in_presaturation_interreduction){
       printRLState(rlstate);
       printf("CEF Choice: %lu\n", action);
       printf("Given Clause: ");
       ClausePrint(stdout, clause, true);
-      printf("\nSet given_clause_selection_index to %d\n", clause->given_clause_selection_index);
+      fflush(stdout);
+      // printf("\nSet given_clause_selection_index to %d\n", clause->given_clause_selection_index);
    }
 
    if(!clause)
@@ -1926,13 +1929,8 @@ Clause_p ProcessClause(ProofState_p state, ProofControl_p control,
 
    if(ProofObjectRecordsGCSelection)
    {
-      printf("\nArchiving clause...\n");
-      printf("Before: %d\n", clause->given_clause_selection_index);
       arch_copy = ClauseArchiveCopy(state->archive, clause);
-      // printf("After: %d\n", arch_copy->given_clause_selection_index);
       ClausePrint(stdout, state->archive->anchor->pred, true);
-      printf("After: %d\n", state->archive->anchor->pred->given_clause_selection_index);
-      // PrintArchive(state);
    }
 
    if(!(pclause = ForwardContractClause(state, control,
