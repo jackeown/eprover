@@ -1896,9 +1896,15 @@ Clause_p ProcessClause(ProofState_p state, ProofControl_p control,
    if (not_in_presaturation_interreduction){
       printRLState(rlstate);
       printf("CEF Choice: %lu\n", action);
-      printf("Given Clause: not printing\n");
-      // ClausePrint(stdout, clause, true);
-      fflush(stdout);
+
+      if (!clause)
+         printf("Given Clause: null\n");
+      else{
+         printf("Given Clause: ");
+         ClausePrint(stdout, clause, true);
+      }
+
+      // fflush(stdout);
    }
 
    if(!clause)
