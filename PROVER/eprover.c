@@ -295,7 +295,7 @@ void strategy_io(HeuristicParms_p h_parms, PStack_p hcb_definitions)
    if(print_strategy)
    {
       HeuristicParmsPrint(stdout, h_parms);
-      exit(NO_ERROR);
+      // exit(NO_ERROR);
    }
 }
 
@@ -547,6 +547,11 @@ int main(int argc, char* argv[])
 
    state = process_options(argc, argv);
 
+   // Spot 1.
+   printf("Spot 1\n");
+   HeuristicParmsPrint(stdout, h_parms);
+
+
    OpenGlobalOut(outname);
 
    print_info();
@@ -576,6 +581,10 @@ int main(int argc, char* argv[])
       state = process_options(argc, argv); // refilling the h_parms
                                            // with manual user options
    }
+
+   // Spot 2:
+   printf("Spot 2:\n");
+   HeuristicParmsPrint(stdout, h_parms);
 
 #ifndef NDEBUG
    fprintf(stdout, "# (lift_lambdas = %d, lambda_to_forall = %d,"
@@ -708,6 +717,10 @@ int main(int argc, char* argv[])
                            proofstate->tmp_terms, proofstate->freshvars);
    }
 
+   // Spot 3:
+   printf("Spot 3:\n");
+   HeuristicParmsPrint(stdout, h_parms);
+
    if((strategy_scheduling && sched_idx != -1) || auto_conf)
    {
       if(!limits)
@@ -816,6 +829,10 @@ int main(int argc, char* argv[])
       fprintf(GlobalOut, "# Preprocessing time       : %.3f s\n", preproc_time);
    }
 
+   // Spot 4:
+   printf("Spot 4:\n");
+   HeuristicParmsPrint(stdout, h_parms);
+
    if(proofcontrol->heuristic_parms.presat_interreduction)
    {
       LiteralSelectionFun sel_strat =
@@ -842,6 +859,14 @@ int main(int argc, char* argv[])
       (!h_parms->enable_neg_unit_paramod))
    {
       inf_sys_complete = false;
+   }
+
+   // Spot 5:
+   printf("Spot 5:\n");
+   HeuristicParmsPrint(stdout, h_parms);
+
+   if (print_strategy){
+      exit(NO_ERROR);
    }
 
    if(!success)
