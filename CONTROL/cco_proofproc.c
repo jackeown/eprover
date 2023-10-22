@@ -1741,7 +1741,7 @@ void printRLState(){
 
       printf("%lu, %lu, %lu, %f, %f", state.numEverProcessed, state.numProcessed, state.numUnprocessed, pweight, uweight);
       if (i < HISTORY_SIZE-1){
-         printf("%lu, ", action_memory[i]);
+         printf(", %lu, ", action_memory[i]);
       }
    }
    printf(")\n");
