@@ -82,11 +82,11 @@ void shiftMemory(){
    memory[HISTORY_SIZE-1] = rlstate;
 }
 
-void shiftActionMemory(){
+void shiftActionMemory(int action){
    for (int i = 1; i < HISTORY_SIZE-1; i++){
       action_memory[i-1] = action_memory[i];
    }
-   action_memory[HISTORY_SIZE-2] = -1;
+   action_memory[HISTORY_SIZE-2] = action;
 }
 
 
