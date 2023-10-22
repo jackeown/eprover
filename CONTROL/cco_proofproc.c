@@ -42,7 +42,7 @@ int RewardPipe;
 #define HISTORY_SIZE 10
 
 RLProofStateCell memory[HISTORY_SIZE];
-size_t action_memory[HISTORY_SIZE-1];
+int action_memory[HISTORY_SIZE-1];
 RLProofStateCell rlstate;
 ClauseSet_p rl_weight_tracking;
 
@@ -1741,7 +1741,7 @@ void printRLState(){
 
       printf("%lu, %lu, %lu, %f, %f", state.numEverProcessed, state.numProcessed, state.numUnprocessed, pweight, uweight);
       if (i < HISTORY_SIZE-1){
-         printf(", %lu, ", action_memory[i]);
+         printf(", %d, ", action_memory[i]);
       }
    }
    printf(")\n");
@@ -1769,7 +1769,7 @@ void sendRLState(){
       write(StatePipe, &uweight, sizeof(float));
 
       if (i < HISTORY_SIZE-1){
-         write(StatePipe, &(action_memory[i]), sizeof(size_t));
+         write(StatePipe, &(action_memory[i]), sizeof(int));
       }
    }
 
