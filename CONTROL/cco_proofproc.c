@@ -38,6 +38,11 @@ PERF_CTR_DEFINE(BWRWTimer);
 int StatePipe;
 int ActionPipe;
 int RewardPipe;
+
+#define HISTORY_SIZE 10
+
+RLProofStateCell memory[HISTORY_SIZE];
+size_t action_memory[HISTORY_SIZE-1];
 RLProofStateCell rlstate;
 ClauseSet_p rl_weight_tracking;
 
@@ -57,6 +62,38 @@ long long statePrepTimeSpent = 0;
 /*---------------------------------------------------------------------*/
 /*                         Internal Functions                          */
 /*---------------------------------------------------------------------*/
+
+
+void initMemory(){
+   for (int i = 0; i < HISTORY_SIZE; i++){
+      memory[i] = rlstate;
+      if (i < HISTORY_SIZE-1){
+         action_memory[i] = -1;
+      }
+   }
+}
+
+// This function adds rlstate to the memory.
+// It also removes old rlstates.
+void shiftMemory(){
+   for (int i = 1; i < HISTORY_SIZE; i++){
+      memory[i-1] = memory[i];
+   }
+   memory[HISTORY_SIZE-1] = rlstate;
+}
+
+void shiftActionMemory(){
+   for (int i = 1; i < HISTORY_SIZE-1; i++){
+      action_memory[i-1] = action_memory[i];
+   }
+   action_memory[HISTORY_SIZE-2] = -1;
+}
+
+
+
+
+
+
 
 /*-----------------------------------------------------------------------
 //
@@ -1640,7 +1677,6 @@ void initRL(ProofState_p state){
    RewardPipe = open(reward_pipe_path, O_WRONLY);
    sync_num = -1; // -1 because it is incremented in each call to sendRLState()
 
-
    // Initialize rlstate
    rlstate.numEverProcessed = 0;
    rlstate.numProcessed = 0;
@@ -1648,6 +1684,8 @@ void initRL(ProofState_p state){
    rlstate.processedWeightSum = 0;
    rlstate.unprocessedWeightSum = 0;
    rlstate.state = state;
+
+   initMemory();
 
    rl_weight_tracking = ClauseSetAlloc();
 }
@@ -1683,33 +1721,57 @@ void checkWeightTracking(ProofState_p state, char* caption, int which){
 }
 
 
-void printRLState(RLProofStateCell state){
-   float pweight = (float)state.processedWeightSum / (float)state.numProcessed;
-   pweight = (isnan(pweight)) ? -1.0 : pweight;
+void printRLState(){
+   // RLProofStateCell state = rlstate;
+   // float pweight = (float)state.processedWeightSum / (float)state.numProcessed;
+   // pweight = (isnan(pweight)) ? -1.0 : pweight;
 
-   float uweight = (float)state.unprocessedWeightSum / (float)state.numUnprocessed;
-   uweight = (isnan(uweight)) ? -1.0 : uweight;
+   // float uweight = (float)state.unprocessedWeightSum / (float)state.numUnprocessed;
+   // uweight = (isnan(uweight)) ? -1.0 : uweight;
 
-   printf("RL State: (%lu, %lu, %lu, %f, %f)\n", state.numEverProcessed, state.numProcessed, state.numUnprocessed, pweight, uweight);
+   // printf("RL State: (%lu, %lu, %lu, %f, %f)\n", state.numEverProcessed, state.numProcessed, state.numUnprocessed, pweight, uweight);
+
+   printf("RL State: (");
+   for (int i=0; i<HISTORY_SIZE; i++){
+      RLProofStateCell state = memory[i];
+      float pweight = (float)state.processedWeightSum / (float) state.numProcessed;
+      pweight = (isnan(pweight)) ? -1.0 : pweight;
+      float uweight = (float)state.unprocessedWeightSum / (float) state.numUnprocessed;
+      uweight = (isnan(uweight)) ? -1.0 : uweight;
+
+      printf("%lu, %lu, %lu, %f, %f", state.numEverProcessed, state.numProcessed, state.numUnprocessed, pweight, uweight);
+      if (i < HISTORY_SIZE-1){
+         printf("%lu, ", action_memory[i]);
+      }
+   }
+   printf(")\n");
 }
 
-void sendRLState(RLProofStateCell state){
+void sendRLState(){
    long long start = timerStart();
    printf("Sending RL State...\n");
    sync_num++;
 
-   float pweight = (float)state.processedWeightSum / (float) state.numProcessed;
-   pweight = (isnan(pweight)) ? -1.0 : pweight;
-
-   float uweight = (float)state.unprocessedWeightSum / (float) state.numUnprocessed;
-   uweight = (isnan(uweight)) ? -1.0 : uweight;
-
    write(StatePipe, &(sync_num), sizeof(int));
-   write(StatePipe, &(state.numEverProcessed), sizeof(size_t));
-   write(StatePipe, &(state.numProcessed), sizeof(size_t));
-   write(StatePipe, &(state.numUnprocessed), sizeof(size_t));
-   write(StatePipe, &pweight, sizeof(float));
-   write(StatePipe, &uweight, sizeof(float));
+
+   for (int i=0; i<HISTORY_SIZE; i++){
+      RLProofStateCell state = memory[i];
+      float pweight = (float)state.processedWeightSum / (float) state.numProcessed;
+      pweight = (isnan(pweight)) ? -1.0 : pweight;
+
+      float uweight = (float)state.unprocessedWeightSum / (float) state.numUnprocessed;
+      uweight = (isnan(uweight)) ? -1.0 : uweight;
+
+      write(StatePipe, &(state.numEverProcessed), sizeof(size_t));
+      write(StatePipe, &(state.numProcessed), sizeof(size_t));
+      write(StatePipe, &(state.numUnprocessed), sizeof(size_t));
+      write(StatePipe, &pweight, sizeof(float));
+      write(StatePipe, &uweight, sizeof(float));
+
+      if (i < HISTORY_SIZE-1){
+         write(StatePipe, &(action_memory[i]), sizeof(size_t));
+      }
+   }
 
    timerEnd(start, &statePipeTimeSpent);
 }
@@ -1861,12 +1923,13 @@ Clause_p ProcessClause(ProofState_p state, ProofControl_p control,
       // checkWeightTracking(state, "MainCheck", trackingWhich);
       rlstate.numEverProcessed += 1;
    }
-
    timerEnd(startTime, &statePrepTimeSpent);
 
-   sendRLState(rlstate);
+   shiftMemory();
+   sendRLState();
 
    size_t action = recvRLAction();
+   shiftActionMemory(action);
    control->hcb->current_eval = action;
 
    ///////////////////////////////////////////////////////////////////////
@@ -1894,7 +1957,7 @@ Clause_p ProcessClause(ProofState_p state, ProofControl_p control,
    
    // For grepping out by python...
    if (not_in_presaturation_interreduction){
-      printRLState(rlstate);
+      printRLState();
       printf("CEF Choice: %lu\n", action);
 
       if (!clause)
