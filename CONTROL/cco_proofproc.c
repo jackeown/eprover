@@ -1739,7 +1739,7 @@ void printRLState(){
       float uweight = (float)state.unprocessedWeightSum / (float) state.numUnprocessed;
       uweight = (isnan(uweight)) ? -1.0 : uweight;
 
-      printf("%lu, %lu, %lu, %f, %f", state.numEverProcessed, state.numProcessed, state.numUnprocessed, pweight, uweight);
+      printf("%lu, %lu, %f, %f", state.numProcessed, state.numUnprocessed, pweight, uweight);
       if (i < HISTORY_SIZE-1){
          printf(", %d, ", action_memory[i]);
       }
