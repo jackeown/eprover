@@ -39,7 +39,7 @@ int StatePipe;
 int ActionPipe;
 int RewardPipe;
 
-#define HISTORY_SIZE 10
+#define HISTORY_SIZE 20
 
 RLProofStateCell memory[HISTORY_SIZE];
 int action_memory[HISTORY_SIZE-1];
@@ -1743,10 +1743,21 @@ void printRLState(){
       if (i < HISTORY_SIZE-1){
          printf(", %d, ", action_memory[i]);
       }
+      else{
+         printf(", %d", state.numEverProcessed);
+      }
    }
    printf(")\n");
 }
 
+
+// State history is like this:
+// (|p|,|u|,pweight,uweight,action)
+// (|p|,|u|,pweight,uweight,action)
+// (|p|,|u|,pweight,uweight,action)
+// ...
+// (|p|,|u|,pweight,uweight,t)
+// num_feats = HISTORY_SIZE*5
 void sendRLState(){
    long long start = timerStart();
    printf("Sending RL State...\n");
@@ -1762,7 +1773,6 @@ void sendRLState(){
       float uweight = (float)state.unprocessedWeightSum / (float) state.numUnprocessed;
       uweight = (isnan(uweight)) ? -1.0 : uweight;
 
-      write(StatePipe, &(state.numEverProcessed), sizeof(size_t));
       write(StatePipe, &(state.numProcessed), sizeof(size_t));
       write(StatePipe, &(state.numUnprocessed), sizeof(size_t));
       write(StatePipe, &pweight, sizeof(float));
@@ -1770,6 +1780,9 @@ void sendRLState(){
 
       if (i < HISTORY_SIZE-1){
          write(StatePipe, &(action_memory[i]), sizeof(int));
+      }
+      else{
+         write(StatePipe, &(state.numEverProcessed), sizeof(size_t));
       }
    }
 
