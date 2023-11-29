@@ -1690,7 +1690,7 @@ void printRLState(RLProofStateCell state){
    float uweight = (float)state.unprocessedWeightSum / (float)state.numUnprocessed;
    uweight = (isnan(uweight)) ? -1.0 : uweight;
 
-   printf("RL State: (%lu, %lu, %lu, %f, %f)\n", state.numEverProcessed, state.numProcessed, state.numUnprocessed, pweight, uweight);
+   printf("RL State: (%lu, %lu, %f, %f, %lu)\n", state.numProcessed, state.numUnprocessed, pweight, uweight, state.numEverProcessed);
 }
 
 void sendRLState(RLProofStateCell state){
@@ -1705,11 +1705,11 @@ void sendRLState(RLProofStateCell state){
    uweight = (isnan(uweight)) ? -1.0 : uweight;
 
    write(StatePipe, &(sync_num), sizeof(int));
-   write(StatePipe, &(state.numEverProcessed), sizeof(size_t));
    write(StatePipe, &(state.numProcessed), sizeof(size_t));
    write(StatePipe, &(state.numUnprocessed), sizeof(size_t));
    write(StatePipe, &pweight, sizeof(float));
    write(StatePipe, &uweight, sizeof(float));
+   write(StatePipe, &(state.numEverProcessed), sizeof(size_t));
 
    timerEnd(start, &statePipeTimeSpent);
 }
