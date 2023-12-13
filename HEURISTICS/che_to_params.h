@@ -1,21 +1,24 @@
 /*-----------------------------------------------------------------------
 
-  File  : che_to_params.h
+File  : che_to_parans.h
 
-  Author: Stephan Schulz
+Author: Stephan Schulz
 
-  Contents
+Contents
 
   Data types and auxilliary functions for describing orderig
   parameters.
 
-  Copyright 2020-2023 by the author.
+  Copyright 2020 by the author.
   This code is released under the GNU General Public Licence and
   the GNU Lesser General Public License.
   See the file COPYING in the main E directory for details..
   Run "eprover -h" for contact information.
 
-  Created: Thu Dec 31 17:39:46 MET 1998
+Changes
+
+<1> Thu Dec 31 17:39:46 MET 1998
+    New
 
 -----------------------------------------------------------------------*/
 
@@ -23,7 +26,6 @@
 
 #define CHE_TO_PARAMS
 
-#include <clb_permastrings.h>
 #include <cto_ocb.h>
 
 #define DEFAULT_LAMBDA_WEIGHT 20
@@ -260,7 +262,7 @@ typedef struct order_parms_cell
       NextToken(in);\
       AcceptInpTok(in, Colon);\
       CheckInpTok(in, Identifier);\
-      handle->name = PermaString(DStrView(AktToken(in)->literal)); \
+      handle->name = DStrCopy(AktToken(in)->literal);     \
       NextToken(in);\
    }\
    else\
@@ -318,13 +320,15 @@ typedef struct order_parms_cell
    }
 
 
+
 #define PARSE_STRING(name)\
    if(TestInpId(in, #name))\
    {\
       NextToken(in);                            \
       AcceptInpTok(in, Colon);\
       CheckInpTok(in, String);                            \
-      handle->name = PermaStringStore(DStrCopyCore(AktToken(in)->literal)); \
+      if(handle->name){FREE(handle->name);} \
+      handle->name = DStrCopyCore(AktToken(in)->literal);     \
       NextToken(in);\
    }\
    else\

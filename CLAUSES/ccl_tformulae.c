@@ -1248,12 +1248,12 @@ Term_p lift_lambda(TB_p terms, PStack_p bound_vars, Term_p body,
 Term_p EncodePredicateAsEqn(TB_p bank, TFormula_p f)
 {
    Sig_p sig = bank->sig;
-   if((TermIsAnyVar(f) ||
-       !SigIsLogicalSymbol(bank->sig, f->f_code) ||
+   if((f->f_code > sig->internal_symbols ||
        f->f_code == SIG_TRUE_CODE ||
        f->f_code == SIG_FALSE_CODE ||
        f->f_code == SIG_ITE_CODE ||
        f->f_code == SIG_LET_CODE ||
+       TermIsAnyVar(f) ||
        TermIsPhonyApp(f)) &&
       f->type == sig->type_bank->bool_type)
    {
@@ -1525,16 +1525,6 @@ void TFormulaTPTPPrint(FILE* out, TB_p bank, TFormula_p form, bool fullterms, bo
       EqnFOFPrint(out, tmp, form->f_code == bank->sig->neqn_code, fullterms, pcl);
       EqnFree(tmp);
    }
-   else if(TermIsFreeVar(form))
-   {
-      TermPrint(out, form, bank->sig, DEREF_NEVER);
-   }
-   else if(form->f_code == SIG_PHONY_APP_CODE)
-   {
-      fprintf(out, "(");
-      TermPrint(out, form, bank->sig, DEREF_NEVER);
-      fprintf(out, ")");
-   }
    else if(TFormulaIsQuantified(bank->sig,form))
    {
       if(form->arity==2)
@@ -1584,10 +1574,6 @@ void TFormulaTPTPPrint(FILE* out, TB_p bank, TFormula_p form, bool fullterms, bo
       fputs("~(", out);
       TFormulaTPTPPrint(out, bank, form->args[0], fullterms, pcl);
       fputs(")", out);
-   }
-   else if(form->arity == 0)
-   {
-      fprintf(out, "%s", SigFindName(bank->sig, form->f_code));
    }
    else
    {
@@ -1979,11 +1965,11 @@ bool TFormulaVarIsFree(TB_p bank, TFormula_p form, Term_p var)
    {
       return false;
    }
-   if(form==var)
+   if(TFormulaIsLiteral(bank->sig, form))
    {
-      return true;
+      res = TBTermIsSubterm(form, var);
    }
-   if((form->f_code == bank->sig->qex_code) ||
+   else if((form->f_code == bank->sig->qex_code) ||
            (form->f_code == bank->sig->qall_code))
    {
       if(form->args[0] == var)
@@ -2084,8 +2070,7 @@ bool TFormulaIsClosed(TB_p bank, TFormula_p form)
 //
 // Function: TFormulaHasFreeVars()
 //
-//   Check if the formula has at least one free variable. If so,
-//   return one of them, otherweise NULL.
+//   Check if the formula has at least one free variable.
 //
 // Global Variables: -
 //
@@ -2093,16 +2078,13 @@ bool TFormulaIsClosed(TB_p bank, TFormula_p form)
 //
 /----------------------------------------------------------------------*/
 
-TFormula_p TFormulaHasFreeVars(TB_p bank, TFormula_p form)
+bool TFormulaHasFreeVars(TB_p bank, TFormula_p form)
 {
-   TFormula_p res = NULL;
+   bool res;
    PTree_p dummy = NULL;
 
    TFormulaCollectFreeVars(bank, form, &dummy);
-   if (dummy!=NULL)
-   {
-      res = dummy->key;
-   }
+   res = (dummy!=NULL);
    PTreeFree(dummy);
    return res;
 }
@@ -2436,19 +2418,9 @@ Clause_p TFormulaCollectClause(TFormula_p form, TB_p terms,
       }
       else
       {
-         if(TFormulaIsLiteral(terms->sig, form))
-         {
-            lit = EqnTBTermDecode(terms, form);
-            PStackPushP(lit_stack, lit);
-         }
-         else if(TermIsTrueTerm(form))
-         {
-            lit = EqnAlloc(form, form, terms, true);
-         }
-         else if(TermIsFalseTerm(form))
-         {
-            // Nothing to do - drop trivial literal
-         }
+         assert(TFormulaIsLiteral(terms->sig, form));
+         lit = EqnTBTermDecode(terms, form);
+         PStackPushP(lit_stack, lit);
       }
    }
    PStackFree(stack);

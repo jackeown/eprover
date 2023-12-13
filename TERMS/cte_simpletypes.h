@@ -108,12 +108,12 @@ bool TypeHasBool(Type_p t);
 
 void TypeFree(Type_p junk);
 
-
 /*-----------------------------------------------------------------------
 //
 // Function: TypeAlloc()
 //
 //   Allocates new type cell.
+//
 //
 // Global Variables: -
 //
@@ -132,7 +132,6 @@ static inline Type_p TypeAlloc(TypeConsCode c_code, int arity, Type_p* args)
    return handle;
 }
 
-
 /*-----------------------------------------------------------------------
 //
 // Function: AllocArrowTypeCopyArgs()
@@ -140,6 +139,7 @@ static inline Type_p TypeAlloc(TypeConsCode c_code, int arity, Type_p* args)
 //   Allocates an arrow type where arguments of arrow are represented
 //   in a statically allocated array -- thus we need to dynamically
 //   allocate them and copy them in the dynamic array.
+//
 //
 // Global Variables: -
 //
