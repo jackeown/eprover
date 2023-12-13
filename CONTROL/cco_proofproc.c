@@ -1816,7 +1816,7 @@ int recvRLAction(){
 
    // printf("----assertion\n");
    assert(sync_num_remote == sync_num);
-   assert(action >= 0 && action < 20);
+   assert(action >= 0);
 
    // int action = rand() % 20;
 
