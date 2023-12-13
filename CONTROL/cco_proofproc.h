@@ -1,20 +1,23 @@
 /*-----------------------------------------------------------------------
 
-  File  : cco_proofproc.h
+File  : cco_proofproc.h
 
-  Author: Stephan Schulz
+Author: Stephan Schulz
 
-  Contents
+Contents
 
   Top level proof procedure
 
-  Copyright 1998-2023 by the author.
+  Copyright 1998-2016 by the author.
   This code is released under the GNU General Public Licence and
   the GNU Lesser General Public License.
   See the file COPYING in the main E directory for details..
   Run "eprover -h" for contact information.
 
-  Created: Mon Jun  8 04:19:50 MET DST 1998
+Changes
+
+<1> Mon Jun  8 04:19:50 MET DST 1998
+    New
 
 -----------------------------------------------------------------------*/
 

@@ -8,7 +8,7 @@ Contents
 
   Define global macro for version number and meta-information.
 
-  Copyright 2009-2023 by the authors (see DOC/CONTRIBUTORS).
+  Copyright 2009-2022 by the authors (see DOC/CONTRIBUTORS).
   This code is released under the GNU General Public Licence and
   the GNU Lesser General Public License.
   See the file COPYING in the main E directory for details..
@@ -21,6 +21,7 @@ Contents
 #define E_VERSION
 
 
+
 /*---------------------------------------------------------------------*/
 /*                    Data type declarations                           */
 /*---------------------------------------------------------------------*/
@@ -31,9 +32,9 @@ Contents
 /*                Exported Functions and Variables                     */
 /*---------------------------------------------------------------------*/
 
-/* git tag E-3.0.03 */
+/* git tag E-3.1pre001 */
 
-#define PVERSION      "3.0.03"
+#define PVERSION      "3.1pre001"
 
 #include "e_gitcommit.h"
 
@@ -49,15 +50,14 @@ Contents
 #define VERSION PVERSION LFH "-DEBUG"
 #endif
 
-//#define E_NICKNAME     "Singbulli"
-#define E_NICKNAME     "Shangri-La"
+#define E_NICKNAME     "Singbulli"
 
 #define E_URL "http://www.eprover.org"
 
 #define STS_MAIL "schulz@eprover.org"
 #define STS_COPYRIGHT "Copyright 1998-2023 by Stephan Schulz"
 #define CTR_COPYRIGHT "and the E contributors (see DOC/CONTRIBUTORS)."
-#define STS_SNAIL "Stephan Schulz\nDHBW Stuttgart\nFakultaet Technik\nInformatik\nLerchenstrasse 1\n70174 Stuttgart\nGermany\n"
+#define STS_SNAIL "Stephan Schulz\nDHBW Stuttgart\nFakultaet Technik\nInformatik\nRotebuehlplatz 41\n70178 Stuttgart\nGermany\n"
 
 #define E_FOOTER \
 STS_COPYRIGHT", " STS_MAIL ",\n\
