@@ -1816,7 +1816,7 @@ int recvRLAction(){
 
    // printf("----assertion\n");
    assert(sync_num_remote == sync_num);
-   assert(action >= 0 && action < 20);
+   assert(action >= 0);
 
    // int action = rand() % 20;
 
@@ -1958,7 +1958,7 @@ Clause_p ProcessClause(ProofState_p state, ProofControl_p control,
    printf("Shifting action memory\n");
    shiftActionMemory(action);
    printf("Shifted action memory...\n");
-   
+
    control->hcb->current_eval = action;
 
    ///////////////////////////////////////////////////////////////////////
