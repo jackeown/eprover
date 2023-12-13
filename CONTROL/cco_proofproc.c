@@ -39,7 +39,7 @@ int RewardPipe;
 #define HISTORY_SIZE 1
 
 RLProofStateCell memory[HISTORY_SIZE];
-int action_memory[HISTORY_SIZE-1];
+int action_memory[HISTORY_SIZE]; // 1 extra spot in case it matters somehow for HISTORY_SIZE=1
 RLProofStateCell rlstate;
 ClauseSet_p rl_weight_tracking;
 
