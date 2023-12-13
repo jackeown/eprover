@@ -41,8 +41,7 @@ Changes
 
 typedef struct pdrangearrcell
 {
-   bool   integer; /* true->it maps to integers, false it maps to
-                      pointers */
+   bool   integer;
    long   offset; /* Indices go from offset (inclusive) to offset+size
                      (exclusive) */
    long   size;
@@ -140,3 +139,8 @@ static inline IntOrP* PDRangeArrElementRef(PDRangeArr_p array, long idx)
 /*---------------------------------------------------------------------*/
 /*                        End of File                                  */
 /*---------------------------------------------------------------------*/
+
+
+
+
+

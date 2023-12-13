@@ -674,7 +674,8 @@ OptCell opts[] =
    {OPT_AUTO,
     '\0', "auto",
     NoArg, NULL,
-    "Automatically determine settings for proof search."},
+    "Automatically determine settings for proof search. This is "
+    "equivalent to -xAuto -tAuto --sine=Auto."},
 
    {OPT_AUTO_SCHED,
     '\0', "auto-schedule",
@@ -702,7 +703,8 @@ OptCell opts[] =
    {OPT_SATAUTO_SCHED,
     '\0', "satauto-schedule",
     OptArg, "1",
-    "Use strategy scheduling without SInE, thus maintaining completeness."},
+    "Use the (experimental) strategy scheduling without SInE, thus "
+    "maintaining completeness."},
 
    {OPT_NO_PREPROCESSING,
     '\0', "no-preprocessing",

@@ -177,6 +177,7 @@ void* SecureMalloc(size_t size)
 #ifdef CLB_MEMORY_DEBUG2
    printf("\nBlock %p M: %zd\n", handle, size);
 #endif
+
    return handle;
 }
 
