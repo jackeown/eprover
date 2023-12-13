@@ -827,9 +827,9 @@ void pdt_node_print(FILE* out, PDTNode_p node, Sig_p sig, int level)
 
 /*-----------------------------------------------------------------------
 //
-// Function: PDTreeAlloc()
+// Function: PDTreeAllocWDeleter()
 //
-//   Allocate an empty, in initialized PDTreeCell (including the
+//   Allocate an empty, initialized PDTreeCell (including the
 //   initial PDTNodeCell().
 //
 // Global Variables: -
