@@ -106,7 +106,7 @@ typedef enum
 
 typedef enum  /* See CLAUSES/ccl_rewrite.c for more */
 {
-   NoRewrite = 0,     /* Just for completness */
+   NoRewrite = 0,     /* Just for completeness */
    RuleRewrite = 1,   /* Rewrite with rules only */
    FullRewrite = 2    /* Rewrite with rules and equations */
 }RewriteLevel;
@@ -237,10 +237,10 @@ typedef Term_p (*TermMapper_p)(void*, Term_p);
 #define TermIsFreeVar(t) ((t)->f_code < 0)
 #define TermIsConst(t)(!TermIsAnyVar(t) && ((t)->arity==0))
 #define TermHasEqNeq(t)(QueryProp((t), (TPHasEqNeqSym)))
+#define TermHasBoolSubterm(t)(QueryProp((t), (TPHasBoolSubterm)))
 
 #ifdef ENABLE_LFHO
 #define TermIsDBVar(term) (QueryProp((term), (TPIsDBVar)))
-#define TermHasBoolSubterm(t)(QueryProp((t), (TPHasBoolSubterm)))
 #define TermIsPhonyApp(term) (!TermIsDBVar(term) && (term)->f_code == SIG_PHONY_APP_CODE)
 #define TermIsAppliedFreeVar(term) (!TermIsDBVar(term) && (term)->f_code == SIG_PHONY_APP_CODE && \
                                     TermIsFreeVar((term)->args[0]))
@@ -267,7 +267,6 @@ typedef Term_p (*TermMapper_p)(void*, Term_p);
 #else
 #define TermIsPhonyApp(term) (false)
 #define TermIsAppliedFreeVar(term) (false)
-#define TermHasBoolSubterm(t)(false)
 #define TermIsAppliedDBVar(term) (false)
 #define TermIsAppliedAnyVar(term) (false)
 #define TermIsDBLambda(term) (false)
@@ -581,8 +580,8 @@ static inline Term_p TermTopCopyWithoutArgs(restrict Term_p source)
    {
       handle->arity = source->arity;
    }
-
-   TermSetBank(handle, TermGetBank(source));
+   //TermSetBank(handle, TermGetBank(source));
+   TermSetBank(handle,0);
 
    return handle;
 }
