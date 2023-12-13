@@ -136,6 +136,7 @@ char *optheory [] =
    NULL,
    NULL,
    NULL,
+   NULL,
    /* HO inferences */
    NULL,
    NULL,
@@ -193,6 +194,8 @@ char *opstatus [] =
    /* Others */
    "thm",
    NULL,
+   "thm",
+   "thm",
    "thm",
    "thm",
    "thm",
@@ -2397,7 +2400,6 @@ long DerivationCollectFCodes(Derivation_p derivation, NumTree_p *tree)
 }
 
 
-
 /*-----------------------------------------------------------------------
 //
 // Function: DerivationPrint()
@@ -2505,9 +2507,14 @@ void DerivationPrintConditional(FILE* out, char* status, Derivation_p derivation
       if(sig->typed_symbols)
       {
          NumTree_p symbols = NULL;
+         PTree_p types = NULL;
+
          DerivationCollectFCodes(derivation, &symbols);
+         SigFCodesCollectTypes(sig, symbols, &types);
+         TypeBankPrintSelectedSortDefs(out, sig->type_bank, types);
          SigPrintTypeDeclsTSTPSelective(out, sig, &symbols);
          NumTreeFree(symbols);
+         PTreeFree(types);
       }
       DerivationPrint(GlobalOut, derivation);
       fprintf(out, "# SZS output end %s\n", status);

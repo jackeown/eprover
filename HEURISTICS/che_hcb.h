@@ -24,6 +24,7 @@
 #define CHE_HCB
 
 #include <clb_dstacks.h>
+#include <clb_permastrings.h>
 #include <ccl_paramod.h>
 #include <ccl_splitting.h>
 #include <ccl_condensation.h>
@@ -58,7 +59,7 @@ typedef enum
    NoLits
 }ExtInferenceType;
 
-typedef enum 
+typedef enum
 {
   NegMode,
   AndMode,
@@ -69,7 +70,7 @@ typedef enum
   LogSymbolMode
 } PrimEnumMode;
 
-typedef enum 
+typedef enum
 {
   SingleUnif, // use only unification which returns a single unifier
   MultiUnif // use unification which possibly returns a multiple unifiers
@@ -113,8 +114,8 @@ typedef struct heuristic_parms_cell
    long                eqdef_maxclauses;
    long                eqdef_incrlimit;
    long                formula_def_limit;
-   
-   char*               sine;
+
+   char                *sine;
    bool                add_goal_defs_pos;
    bool                add_goal_defs_neg; /* Twee-style goal rewriting */
    bool                add_goal_defs_subterms;
