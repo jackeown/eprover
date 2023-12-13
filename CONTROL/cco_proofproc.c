@@ -1948,11 +1948,17 @@ Clause_p ProcessClause(ProofState_p state, ProofControl_p control,
    }
    timerEnd(startTime, &statePrepTimeSpent);
 
+   printf("Shifting memory\n");
    shiftMemory();
+   printf("Shifted memory...\n");
+
    sendRLState();
 
    size_t action = recvRLAction();
+   printf("Shifting action memory\n");
    shiftActionMemory(action);
+   printf("Shifted action memory...\n");
+   
    control->hcb->current_eval = action;
 
    ///////////////////////////////////////////////////////////////////////
