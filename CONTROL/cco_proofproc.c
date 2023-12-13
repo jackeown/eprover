@@ -1788,7 +1788,7 @@ void sendRLState(){
       write(StatePipe, &pweight, sizeof(float));
       write(StatePipe, &uweight, sizeof(float));
 
-      if (i < HISTORY_SIZE-1){
+      if (i < (HISTORY_SIZE-1)){
          write(StatePipe, &(action_memory[i]), sizeof(int));
       }
       else{
