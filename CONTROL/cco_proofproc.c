@@ -1987,7 +1987,9 @@ Clause_p ProcessClause(ProofState_p state, ProofControl_p control,
 
    if(!clause)
    {
-      sendRLReward(0.0);
+      if (not_in_presaturation_interreduction){
+         sendRLReward(0.0);
+      }
       printf("!clause\n");
       return NULL;
    }
@@ -2026,7 +2028,9 @@ Clause_p ProcessClause(ProofState_p state, ProofControl_p control,
       {
          ClauseSetDeleteEntry(arch_copy);
       }
-      sendRLReward(0.0);
+      if (not_in_presaturation_interreduction){
+         sendRLReward(0.0);
+      }
       printf("Subsumed I think!\n");
       return NULL;
    }
@@ -2042,7 +2046,9 @@ Clause_p ProcessClause(ProofState_p state, ProofControl_p control,
       {
          clause = FVUnpackClause(pclause);
          ClauseEvaluateAnswerLits(clause);
-         sendRLReward(1.0);
+         if (not_in_presaturation_interreduction){
+            sendRLReward(1.0);
+         }
          printf("ClauseIsSemFalse!\n");
          return clause;
       }
@@ -2061,10 +2067,14 @@ Clause_p ProcessClause(ProofState_p state, ProofControl_p control,
       if(resclause)
       {
          PStackPushP(state->extract_roots, resclause);
-         sendRLReward(1.0);
+         if (not_in_presaturation_interreduction){
+            sendRLReward(1.0);
+         }
       }
       else{
-         sendRLReward(0.0);
+         if (not_in_presaturation_interreduction){
+            sendRLReward(0.0);
+         }
       }
       
       return resclause;
@@ -2166,10 +2176,14 @@ Clause_p ProcessClause(ProofState_p state, ProofControl_p control,
    if((empty = insert_new_clauses(state, control)))
    {
       PStackPushP(state->extract_roots, empty);
-      sendRLReward(1.0);
+      if (not_in_presaturation_interreduction){
+         sendRLReward(1.0);
+      }
       return empty;
    }
-   sendRLReward(0.0);
+   if (not_in_presaturation_interreduction){
+      sendRLReward(0.0);
+   }
 
 
    return NULL;
