@@ -1921,37 +1921,37 @@ Clause_p ProcessClause(ProofState_p state, ProofControl_p control,
    rlstate.numUnprocessed = ClauseSetCardinality(state->unprocessed);
 
 
-   if(first_time && not_in_presaturation_interreduction){
-      first_time = false;
-      rlstate.processedWeightSum =  ClauseSetStandardWeight(state->processed_neg_units) +
-                                    ClauseSetStandardWeight(state->processed_non_units) +
-                                    ClauseSetStandardWeight(state->processed_pos_eqns)  +
-                                    ClauseSetStandardWeight(state->processed_pos_rules);
+   if(not_in_presaturation_interreduction){
+      if (first_time){
+         first_time = false;
+         rlstate.processedWeightSum =  ClauseSetStandardWeight(state->processed_neg_units) +
+                                       ClauseSetStandardWeight(state->processed_non_units) +
+                                       ClauseSetStandardWeight(state->processed_pos_eqns)  +
+                                       ClauseSetStandardWeight(state->processed_pos_rules);
 
-      rlstate.unprocessedWeightSum = ClauseSetStandardWeight(state->unprocessed);
+         rlstate.unprocessedWeightSum = ClauseSetStandardWeight(state->unprocessed);
 
-      printf("Initialized processed/unprocessed weights for tracking: (%llu, %llu)\n", rlstate.processedWeightSum, rlstate.unprocessedWeightSum);
+         printf("Initialized processed/unprocessed weights for tracking: (%llu, %llu)\n", rlstate.processedWeightSum, rlstate.unprocessedWeightSum);
+      }
       rlstate.numEverProcessed += 1;
-   }
-   else if(not_in_presaturation_interreduction){
-      // Comment for better performance, once you're sure there are no issues with the tracking...
-      // checkWeightTracking(state, "MainCheck", trackingWhich);
-      rlstate.numEverProcessed += 1;
+
+      shiftMemory();
+      sendRLState();
+
+      size_t action = recvRLAction();
+      shiftActionMemory(action);
+      control->hcb->current_eval = action;
    }
    timerEnd(startTime, &statePrepTimeSpent);
 
-   shiftMemory();
-   sendRLState();
-
-   size_t action = recvRLAction();
-   shiftActionMemory(action);
-   control->hcb->current_eval = action;
 
    ///////////////////////////////////////////////////////////////////////
 
    // clause = control->hcb->hcb_select(control->hcb,
    //                                   state->unprocessed);
 
+   size_t action = control->hcb->current_eval; // needed for printf below...
+   
    printf("Just before customized_hcb_select...\n");
    clause = customized_hcb_select(control->hcb, state->unprocessed);
 
