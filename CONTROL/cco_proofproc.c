@@ -39,7 +39,7 @@ int StatePipe;
 int ActionPipe;
 int RewardPipe;
 
-#define HISTORY_SIZE 20
+#define HISTORY_SIZE 2
 
 RLProofStateCell memory[HISTORY_SIZE];
 int action_memory[HISTORY_SIZE-1];
