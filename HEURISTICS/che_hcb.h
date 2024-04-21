@@ -324,6 +324,7 @@ void     HCBFree(HCB_p junk);
 long     HCBAddWFCB(HCB_p hcb, WFCB_p wfcb, long steps);
 void     HCBClauseEvaluate(HCB_p hcb, Clause_p clause);
 Clause_p HCBStandardClauseSelect(HCB_p hcb, ClauseSet_p set);
+Clause_p HCBRoundRobinClauseSelect(HCB_p hcb, ClauseSet_p set);
 Clause_p HCBSingleWeightClauseSelect(HCB_p hcb, ClauseSet_p set);
 
 long     HCBClauseSetDelProp(HCB_p hcb, ClauseSet_p set, long number,

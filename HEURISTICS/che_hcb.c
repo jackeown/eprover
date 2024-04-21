@@ -776,7 +776,7 @@ HCB_p HCBAlloc(void)
    handle->current_eval  = 0;
    handle->select_switch = PDArrayAlloc(4,4);
    handle->select_count  = 0;
-   handle->hcb_select    = HCBStandardClauseSelect;
+   handle->hcb_select    = HCBRoundRobinClauseSelect;
    handle->hcb_exit      = default_exit_fun;
    handle->data          = NULL;
 
@@ -839,7 +839,7 @@ long HCBAddWFCB(HCB_p hcb, WFCB_p wfcb, long steps)
    hcb->wfcb_no++;
 
    hcb->hcb_select = (hcb->wfcb_no != 1) ?
-      HCBStandardClauseSelect : HCBSingleWeightClauseSelect;
+      HCBRoundRobinClauseSelect : HCBSingleWeightClauseSelect;
 
    return hcb->wfcb_no;
 }
@@ -912,6 +912,93 @@ Clause_p HCBStandardClauseSelect(HCB_p hcb, ClauseSet_p set)
    }
    return clause;
 }
+
+
+
+// Helper function for HCBRoundRobinClauseSelect
+// returns number of selections remaining for the current CEF
+// before it's done for the round.
+int selections_remaining(HCB_p hcb)
+{
+   size_t prev_switch, curr_switch, curr_weight;
+   int selections_remaining;
+   prev_switch = (hcb->current_eval == 0) ? 0 : PDArrayElementInt(hcb->select_switch, hcb->current_eval-1);
+   curr_switch = PDArrayElementInt(hcb->select_switch, hcb->current_eval);
+   curr_weight = curr_switch - prev_switch;
+   return curr_weight - (hcb->select_count / hcb->wfcb_no);
+}
+
+/*-----------------------------------------------------------------------
+//
+// Function: HCBRoundRobinClauseSelect()
+//
+//   Select a clause from set, based on the evaluations and the data
+//   in hcb. (roundrobin variant)
+//
+// (3xCEF1, 2xCEF2, 4xCEF3) would use:
+//
+// 1.) CEF1
+// 2.) CEF2
+// 3.) CEF3
+// 4.) CEF1
+// 5.) CEF2 <- last (2nd) CEF2
+// 6.) CEF3
+// 7.) CEF1 <- last (3rd) CEF1
+// 8.) CEF3
+// 9.) CEF3 <- last (4th) CEF3
+
+// (3xCEF1, 2xCEF2, 4xCEF3) would use:
+// has hcb->select_switch = [3,3+2,3+2+4] = [3,5,9]
+// 
+// if hcb->select_count gives the total number of
+// selections since a *full reset* has been done,
+// then eval i should be used if and only if:
+// heuristic_weight_i - (select_count // wfcb_no) > 0
+// where heuristic_weight_i = select_switch[i] - select_switch[i-1]
+//
+// Global Variables: -
+//
+// Side Effects    : Modifies HCB data
+//
+/----------------------------------------------------------------------*/
+Clause_p HCBRoundRobinClauseSelect(HCB_p hcb, ClauseSet_p set)
+{
+   Clause_p clause;
+
+   clause = ClauseSetFindBest(set, hcb->current_eval);
+   while(clause && ClauseIsOrphaned(clause))
+   {
+      ClauseSetExtractEntry(clause);
+      ClauseFree(clause);
+      clause = ClauseSetFindBest(set, hcb->current_eval);
+   }
+   // printf("GCS USING CEF %d\n", hcb->current_eval);
+   hcb->select_count++;
+
+
+   // Reset when select_count == select_switch[hcb->wfcb_no-1]
+   // (All selections for all CEFs have been done once)
+   if(hcb->select_count == PDArrayElementInt(hcb->select_switch, hcb->wfcb_no-1))
+   {
+      hcb->select_count = 0;
+      hcb->current_eval = 0;
+   }
+   else{
+      do
+      {
+         hcb->current_eval = (hcb->current_eval+1) % hcb->wfcb_no;
+      }while(selections_remaining(hcb) <= 0);
+   }
+
+   return clause;
+}
+
+
+
+
+
+
+
 
 
 /*-----------------------------------------------------------------------
