@@ -493,7 +493,7 @@ static void print_proof_stats(ProofState_p proofstate,
 
 
 void printStrategies(ScheduleCell* schedules){
-      printf("Printing Strategies: \n");
+      printf("Printing Strategies\n");
 
       HeuristicParmsCell old_h_parms = *h_parms;
 
