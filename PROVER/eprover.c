@@ -503,7 +503,7 @@ void printStrategies(ScheduleCell* schedules){
             int i=0;
 
             while (schedules[i].heu_name && strncmp(schedules[i].heu_name, placeholder, sizeof(placeholder)) != 0){
-                  fprintf(GlobalOut, "%s\n", schedules[i].heu_name);
+                  fprintf(GlobalOut, "strat name: '%s'\n", schedules[i].heu_name);
                   GetHeuristicWithName(schedules[i].heu_name, h_parms);
                   HeuristicParmsPrint(GlobalOut, h_parms);
                   i++;
