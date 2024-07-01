@@ -330,7 +330,7 @@ int handle_auto_modes_preproc(ProofState_p proofstate,
    RawSpecFeaturesClassify(raw_features, *limits, RAW_DEFAULT_MASK);
    *preproc_schedule = GetPreprocessingSchedule(raw_features->class);
    fprintf(stdout, "# Preprocessing class: %s.\n", raw_features->class);
-   if(strategy_scheduling)
+   if(strategy_scheduling && !print_strategy)
    {
       sched_idx = ExecuteScheduleMultiCore(*preproc_schedule, h_parms,
                                            print_rusage,
@@ -351,7 +351,7 @@ int handle_auto_modes_preproc(ProofState_p proofstate,
    }
    else
    {
-      assert(auto_conf);
+      assert(auto_conf || print_strategy);
       GetHeuristicWithName((*preproc_schedule)->heu_name, h_parms);
       fprintf(stdout, "# Configuration: %s\n", (*preproc_schedule)->heu_name);
    }
@@ -487,6 +487,43 @@ static void print_proof_stats(ProofState_p proofstate,
       // PDTreePrint(GlobalOut, proofstate->processed_pos_rules->demod_index);
    }
 }
+
+
+
+
+
+void printStrategies(ScheduleCell* schedules){
+      printf("Printing Strategies: \n");
+
+      HeuristicParmsCell old_h_parms = *h_parms;
+
+      char placeholder[] = "<placeholder>";
+      if(print_strategy)
+      {
+            int i=0;
+
+            while (schedules[i].heu_name && strncmp(schedules[i].heu_name, placeholder, sizeof(placeholder)) != 0){
+                  fprintf(GlobalOut, "%s\n", schedules[i].heu_name);
+                  GetHeuristicWithName(schedules[i].heu_name, h_parms);
+                  HeuristicParmsPrint(GlobalOut, h_parms);
+                  i++;
+            }
+
+            *h_parms = old_h_parms;
+
+            printf("Done Printing Strategies\n");
+            exit(NO_ERROR);
+
+            // HeuristicParmsPrint(stdout, h_parms);
+      }
+}
+
+
+
+
+
+
+
 
 
 /*-----------------------------------------------------------------------
@@ -705,7 +742,7 @@ int main(int argc, char* argv[])
                            h_parms, proofstate->terms,
                            proofstate->tmp_terms, proofstate->freshvars);
    }
-   if((strategy_scheduling && sched_idx != -1) || auto_conf)
+   if((strategy_scheduling && (sched_idx != SCHEDULE_DONE || print_strategy)) || auto_conf)
    {
       if(!spec_limits)
       {
@@ -727,8 +764,11 @@ int main(int argc, char* argv[])
       {
          set_limits(HardTimeLimit, SoftTimeLimit, h_parms->mem_limit);
          ScheduleCell* search_sched = GetSearchSchedule(class);
+         printStrategies(search_sched);
          InitializePlaceholderSearchSchedule(search_sched, preproc_schedule+sched_idx,
                                              force_pre_schedule);
+
+
          int status =
             ExecuteScheduleMultiCore(search_sched,
                                      h_parms, print_rusage,
